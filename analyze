@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+import argparse
+import logging
+
+import src.log as log
+from src.data import Data, Filter
+from src.plot import Plot
+
+
+def main():
+    args = parse_args()
+
+    log.setup(logging.INFO)
+    Plot.init()
+
+    # Parse the data
+    data = Data(args.enable_nlp)
+
+    filter_text = "issues and PRs"
+    if args.pull_requests:
+        logging.info("Filtering pull requests only")
+        filter_text = "PRs"
+        data.filter = Filter.PULL_REQUESTS
+
+    if args.issues:
+        logging.info("Filtering issues only")
+        filter_text = "issues"
+        data.filter = Filter.ISSUES
+
+    # Created over time
+    if args.created:
+        plot = Plot(data.created_time_series())
+        x = plot.time("Created %s over time" % filter_text)
+        plot.annotate_chunked(x)
+
+    # Closed over time
+    if args.closed:
+        plot = Plot(data.closed_time_series())
+        x = plot.time("Closed %s over time" % filter_text)
+        plot.annotate_chunked(x)
+
+    # Created vs Closed over time
+    if args.created_vs_closed:
+        plot = Plot(data.created_vs_closed_time_series())
+        x = plot.time("Created vs closed %s over time" % filter_text)
+        plot.annotate_chunked(x)
+
+    # Label usage by name
+    if args.labels_by_name:
+        data.include_regex = args.include_labels
+        data.exclude_regex = args.exclude_labels
+        series = data.label_name_usage_series()
+        plot = Plot(series)
+        logging.info("Got %d distinct labels and %d results", len(series),
+                     sum(series))
+        logging.debug("Results:\n%s", series)
+        plot.barh("Label usage by name for %s" % filter_text, args.count)
+
+    # Label usage by name
+    if args.labels_by_group:
+        data.include_regex = args.include_labels
+        data.exclude_regex = args.exclude_labels
+        series = data.label_group_usage_series()
+        logging.info("Got %d distinct label groups and %d results",
+                     len(series), sum(series))
+        logging.debug("Results:\n%s", series)
+        plot.barh("Label usage by label group for %s" % filter_text,
+                  args.count)
+
+    if not args.no_plot_gtk:
+        Plot.show()
+
+    if args.save_svg:
+        Plot.save()
+
+    logging.info("Done")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-plot-gtk",
+                        "-n",
+                        action="store_true",
+                        help="Do not plot as GTK window")
+
+    parser.add_argument("--enable-nlp",
+                        "-a",
+                        action="store_true",
+                        help="Enable NLP and intense text parsing")
+
+    parser.add_argument("--save-svg",
+                        "-s",
+                        action="store_true",
+                        help="Save the plot as SVG file")
+
+    parser.add_argument("--include-labels",
+                        "-l",
+                        type=str,
+                        metavar="FILTER",
+                        help="Include labels by the provided regex")
+
+    parser.add_argument("--exclude-labels",
+                        "-e",
+                        type=str,
+                        metavar="FILTER",
+                        help="Exclude labels by the provided regex")
+
+    parser.add_argument("--count",
+                        "-c",
+                        type=int,
+                        metavar="COUNT",
+                        default=25,
+                        help="Display only the specified amount of labels")
+
+    select_group = parser.add_mutually_exclusive_group()
+    select_group.add_argument("--created",
+                              "-1",
+                              action="store_true",
+                              help="show created issues/PRs over time")
+
+    select_group.add_argument("--closed",
+                              "-2",
+                              action="store_true",
+                              help="show closed issues/PRs over time")
+
+    select_group.add_argument(
+        "--created-vs-closed",
+        "-3",
+        action="store_true",
+        help="show created vs closed issues/PRs over time")
+
+    select_group.add_argument("--labels-by-name",
+                              "-4",
+                              action="store_true",
+                              help="show use labels by name")
+
+    select_group.add_argument("--labels-by-group",
+                              "-5",
+                              action="store_true",
+                              help="show used labels by group")
+
+    filter_group = parser.add_mutually_exclusive_group()
+    filter_group.add_argument("--pull-requests",
+                              "-p",
+                              action="store_true",
+                              help="filter PRs only")
+
+    filter_group.add_argument("--issues",
+                              "-i",
+                              action="store_true",
+                              help="filter issues only")
+
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()

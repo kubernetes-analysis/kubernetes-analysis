@@ -1,0 +1,61 @@
+---
+version: 2.1
+
+orbs:
+  python: circleci/python@0.2.1
+
+workflows:
+  main:
+    jobs:
+      - build
+  update:
+    jobs:
+      - update
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+
+jobs:
+  build:
+    executor: python/default
+    steps:
+      - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
+
+  update:
+    executor: python/default
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 5f:6f:8d:60:03:5c:11:96:d5:bb:45:b7:0f:8f:9b:17
+      - run:
+          name: Install git lfs
+          command: |
+            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sudo apt-get install -y git-lfs
+            git lfs install
+      - checkout
+      - python/load-cache
+      - python/install-deps
+      - run:
+          name: Setup git
+          command: |
+            git config --global user.name "Sascha Grunert"
+            git config --global user.email mail@saschagrunert.de
+      - run:
+          name: Run update
+          command: |
+            ./export -u
+      - run:
+          name: Commit changes
+          command: |
+            git add .
+            git commit -m "Update data" || true
+            git push -u origin master
+      - python/save-cache

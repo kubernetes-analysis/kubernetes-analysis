@@ -1,0 +1,13 @@
+[MASTER]
+attr-rgx=[a-z0-9_]{1,30}$
+function-rgx=[a-z0-9_]{1,30}$
+variable-rgx=[a-z0-9_]{1,30}$
+argument-rgx=[a-z0-9_]{1,30}$
+disable=
+    C0114, # missing-module-docstring
+    C0115, # missing-class-docstring
+    C0116, # missing-function-docstring
+    C0330, # bad-continuation
+    E0402, # relative-beyond-top-level
+    R0902, # too-many-instance-attributes
+    R0911, # too-many-return-statements

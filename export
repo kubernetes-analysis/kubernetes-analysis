@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import json
+import logging
+import os
+import time
+from typing import Optional
+
+from github import Github, Repository
+
+import src.log as log
+from src.data import DATA_JSON, Data
+
+GITHUB_TOKEN = "GITHUB_TOKEN"
+UPDATE_FILE = ".update"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--update",
+                        "-u",
+                        action="store_true",
+                        help="Update the dataset")
+    args = parser.parse_args()
+
+    log.setup(logging.INFO)
+    logging.info("Retrieving issues and PRs")
+
+    token = get_github_token()
+    github = Github(token)
+    repo = github.get_repo("kubernetes/kubernetes")
+
+    if args.update:
+        logging.info("Updating issues")
+        update_issues(repo)
+    else:
+        logging.info("Dumping all issues")
+        dump_all_issues(repo)
+
+
+def get_github_token() -> Optional[str]:
+    logging.info("Getting %s from environment variable", GITHUB_TOKEN)
+    token = os.environ.get(GITHUB_TOKEN)
+    if token is None:
+        logging.critical("%s environment variable not set", GITHUB_TOKEN)
+    return token
+
+
+def dump_all_issues(repo: Repository):
+    result = []
+
+    # We use the first (latest) issue as indicator of how many data we have to
+    # fetch
+    issues = repo.get_issues(state="all")
+    latest_issue = issues[0]
+    count = latest_issue.number
+    logging.info("Pulling %d items", count)
+
+    for i in range(1, count + 1):
+        try:
+            issue = repo.get_issue(i)
+            logging.info("%u: %s", issue.number, issue.title)
+            result.append(issue.raw_data)
+        except Exception as err:
+            logging.info("Unable to get data, waiting a minute: %s", err)
+            time.sleep(60)
+
+    with open(DATA_JSON, "w") as data_file:
+        json.dump(result, data_file)
+
+    logging.info("Done exporting %d items", i)
+    Data.to_tarball()
+
+
+def update_issues(repo: Repository):
+    # load the update file contents
+    update_file = open(UPDATE_FILE, "r+")
+    date = datetime.datetime.strptime(update_file.read().strip(),
+                                      "%Y-%m-%dT%H:%M:%S.%f")
+    logging.info("Got update timestamp: %s", date.isoformat())
+
+    json_list = []
+    for issue in repo.get_issues(
+            since=date,
+            sort="updated",
+            state="all",
+    ):
+        logging.info("%d: %s", issue.number, issue.title)
+        json_list.append(issue.raw_data)
+
+    data = Data()
+
+    logging.info("Updating data")
+    data.update(json_list)
+
+    logging.info("Saving data")
+    data.dump()
+
+    Data.to_tarball()
+
+    # update the file
+    update_file.seek(0, 0)
+    new_date = datetime.datetime.utcnow().isoformat()
+    logging.info("New update timestamp: %s", new_date)
+    update_file.write(new_date)
+
+
+if __name__ == "__main__":
+    main()
