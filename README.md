@@ -29,8 +29,8 @@ keep the data sets up to date.
 
 ### Analysis
 
-The [./analyze][5] script can be used for manual data analysis. This script
+The [./analyze][20] script can be used for manual data analysis. This script
 automatically extracts the data and operates on it. See `./analyze -h` for more
 details.
 
-[5]: ./analyze
+[20]: ./analyze
