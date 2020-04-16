@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import time
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 from github import Github, Repository
 
@@ -13,30 +13,42 @@ import src.log as log
 from src.data import API_DATA_JSON, Data
 
 GITHUB_TOKEN = "GITHUB_TOKEN"
-API_UPDATE_FILE = ".update_api"
+API_UPDATE_FILE = ".update"
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--update-api",
-                        "-u",
-                        action="store_true",
-                        help="Update the API dataset")
-    args = parser.parse_args()
-
+    args = parse_args()
     log.setup(logging.INFO)
-    logging.info("Retrieving issues and PRs")
-
-    token = get_github_token()
-    github = Github(token)
-    repo = github.get_repo("kubernetes/kubernetes")
 
     if args.update_api:
-        logging.info("Updating issues")
-        update_issues(repo)
+        logging.info("Retrieving issues and PRs")
+        token = get_github_token()
+        github = Github(token)
+        repo = github.get_repo("kubernetes/kubernetes")
+
+        logging.info("Updating API")
+        update_api(repo)
+
+    elif args.update_bow:
+        logging.info("Updating bag of words")
+        update_bag_of_words()
     else:
         logging.info("Dumping all issues")
         dump_api(repo)
+
+
+def parse_args() -> Any:
+    parser = argparse.ArgumentParser()
+    update_group = parser.add_mutually_exclusive_group()
+    update_group.add_argument("--update-api",
+                              "-u",
+                              action="store_true",
+                              help="Update the API dataset")
+    update_group.add_argument("--update-bow",
+                              "-b",
+                              action="store_true",
+                              help="Update the bag of words dataset")
+    return parser.parse_args()
 
 
 def get_github_token() -> Optional[str]:
@@ -73,12 +85,8 @@ def dump_api(repo: Repository):
     Data.api_to_tarball()
 
 
-def update_issues(repo: Repository):
-    # load the update file contents
-    api_update_file = open(API_UPDATE_FILE, "r+")
-    date = datetime.datetime.strptime(api_update_file.read().strip(),
-                                      "%Y-%m-%dT%H:%M:%S.%f")
-    logging.info("Got update timestamp: %s", date.isoformat())
+def update_api(repo: Repository):
+    (update_file, date) = get_update_file_date(API_UPDATE_FILE)
 
     json_list = []
     for issue in repo.get_issues(
@@ -95,15 +103,35 @@ def update_issues(repo: Repository):
     data.update_api_data(json_list)
 
     logging.info("Saving data")
-    data.dump()
+    data.dump_api()
 
     Data.api_to_tarball()
+    write_update_file_date(update_file)
 
+
+def get_update_file_date(file_name: str) -> Tuple[Any, Any]:
+    # load the update file contents
+    update_file = open(file_name, "r+")
+    date = datetime.datetime.strptime(update_file.read().strip(),
+                                      "%Y-%m-%dT%H:%M:%S.%f")
+    logging.info("Got update timestamp: %s", date.isoformat())
+    return (update_file, date)
+
+
+def write_update_file_date(update_file: Any):
     # update the file
-    api_update_file.seek(0, 0)
+    update_file.seek(0, 0)
     new_date = datetime.datetime.utcnow().isoformat()
     logging.info("New update timestamp: %s", new_date)
-    api_update_file.write(new_date)
+    update_file.write(new_date)
+
+
+def update_bag_of_words():
+    logging.info("Parsing data based on local dataset")
+    data = Data(parse_nlp=True)
+
+    logging.info("Saving data")
+    data.dump_bag_of_words()
 
 
 if __name__ == "__main__":

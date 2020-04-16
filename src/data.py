@@ -8,15 +8,21 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from .bag_of_words import BagOfWords
 from .issue import Issue
 from .label import Label
 from .pull_request import PullRequest
 from .series import Series
 
 DATA_DIR = "data"
+
 API_JSON = "api.json"
 API_DATA_JSON = os.path.join(DATA_DIR, API_JSON)
 API_DATA_TARBALL = os.path.join(DATA_DIR, "api.tar.xz")
+
+BOW_JSON = "bow.json"
+BOW_DATA_JSON = os.path.join(DATA_DIR, BOW_JSON)
+BOW_DATA_TARBALL = os.path.join(DATA_DIR, "bow.tar.xz")
 
 
 class Filter(Enum):
@@ -26,35 +32,50 @@ class Filter(Enum):
 
 
 class Data():
-    __issues: List[Issue]
-    __pull_requests: List[PullRequest]
+    # Dict indexed by their ID
+    __issues: Dict[int, Issue]
+    __pull_requests: Dict[int, PullRequest]
+
     __filter: Filter
+    __parse_nlp: bool
+
     __api_json: List[Any]
-    __enable_nlp: bool
+    __bow_json: Optional[List[Dict]]
+
     __include_regex: Optional[str]
     __exclude_regex: Optional[str]
 
-    def __init__(self, enable_nlp=False):
-        logging.info("NLP support: %s", enable_nlp)
+    BOW_ALL_KEY = "all"
+    BOW_RELEASE_NOTES_KEY = "release_notes"
 
+    def __init__(self, parse_nlp=False):
         Data.__extract_api_data()
+
+        logging.info("Parsing NLP from raw data: %s", parse_nlp)
+        self.__bow_json = None
+        self.__parse_nlp = parse_nlp
+
+        api_data_file = open(API_DATA_JSON, "r")
+        logging.info("Loading API JSON content")
+        self.__api_json = json.load(api_data_file)
+        self.__init_api_json()
+
+        if not parse_nlp:
+            Data.__extract_bow_data()
+
+            logging.info("Loading bag of words JSON content")
+            bow_data_file = open(BOW_DATA_JSON, "r")
+            self.__bow_json = json.load(bow_data_file)
+            self.__init_bow_json()
 
         self.__filter = Filter.ALL
         self.__include_regex = None
         self.__exclude_regex = None
-        self.__enable_nlp = enable_nlp
 
-        api_data_file = open(API_DATA_JSON, "r")
-
-        logging.info("Loading JSON content")
-        self.__api_json = json.load(api_data_file)
-
-        self.__init_json()
-
-    def __init_json(self):
-        logging.info("Parsing JSON content")
-        self.__issues = []
-        self.__pull_requests = []
+    def __init_api_json(self):
+        logging.info("Parsing API JSON content")
+        self.__issues = {}
+        self.__pull_requests = {}
 
         pool_count = os.cpu_count()
         with ThreadPoolExecutor(max_workers=pool_count) as e:
@@ -75,10 +96,34 @@ class Data():
                      len(self.__issues) + len(self.__pull_requests))
 
     def __append_pull_request(self, item: Dict):
-        self.__pull_requests.append(PullRequest(item, self.__enable_nlp))
+        pr = PullRequest(item, self.__parse_nlp)
+        self.__pull_requests[pr.id] = pr
 
     def __append_issue(self, item: Dict):
-        self.__issues.append(Issue(item, self.__enable_nlp))
+        issue = Issue(item, self.__parse_nlp)
+        self.__issues[issue.id] = issue
+
+    def __init_bow_json(self):
+        logging.info("Parsing bag of words JSON content")
+
+        for item_id, item in self.__bow_json.items():
+            i = int(item_id)
+
+            # Issues are just stored as lists
+            if isinstance(item, list) and i in self.__issues:
+                self.__issues[i].bag_of_words = BagOfWords(words=item)
+
+            # PRs are stored as dictionaries
+            elif i in self.__pull_requests:
+                if item[Data.BOW_ALL_KEY]:
+                    bow = BagOfWords(words=item[Data.BOW_ALL_KEY])
+                    self.__pull_requests[i].bag_of_words = bow
+
+                if item[Data.BOW_RELEASE_NOTES_KEY]:
+                    bow = BagOfWords(words=item[Data.BOW_RELEASE_NOTES_KEY])
+                    self.__pull_requests[i].release_note_bag_of_words = bow
+
+        logging.info("Parsed %d bag of word items", len(self.__bow_json))
 
     @property
     def filter(self) -> Filter:
@@ -114,11 +159,19 @@ class Data():
 
     @staticmethod
     def __extract_api_data():
-        if os.path.isfile(API_DATA_JSON):
+        Data.__extract(API_DATA_TARBALL, API_DATA_JSON)
+
+    @staticmethod
+    def __extract_bow_data():
+        Data.__extract(BOW_DATA_TARBALL, BOW_DATA_JSON)
+
+    @staticmethod
+    def __extract(tarball: str, target_file: str):
+        if os.path.isfile(target_file):
             logging.info("Using already extracted data")
         else:
             logging.info("Extracting API data")
-            tarfile.open(API_DATA_TARBALL).extractall(path=DATA_DIR)
+            tarfile.open(tarball).extractall(path=DATA_DIR)
 
     def update_api_data(self, json_data: List[Dict]):
         new_issues = []
@@ -141,11 +194,34 @@ class Data():
             logging.info("Adding new issue %d", new_issue["number"])
             self.__api_json.append(new_issue)
 
-        self.__init_json()
+        self.__init_api_json()
 
-    def dump(self):
+    def dump_api(self):
         with open(API_DATA_JSON, "w") as outfile:
             json.dump(self.__api_json, outfile)
+
+    def dump_bag_of_words(self):
+        res = {}
+
+        for issue in self.__issues.values():
+            if issue.bag_of_words:
+                res[issue.id] = issue.bag_of_words.words
+
+        for pr in self.__pull_requests.values():
+            if pr.bag_of_words:
+                res[pr.id] = {
+                    Data.BOW_ALL_KEY: pr.bag_of_words.words,
+                }
+                if pr.release_note_bag_of_words:
+                    words = pr.release_note_bag_of_words.words
+                    res[pr.id][Data.BOW_RELEASE_NOTES_KEY] = words
+
+        with open(BOW_DATA_JSON, "w") as outfile:
+            json.dump(res, outfile)
+
+        logging.info("Compressing bag of words data")
+        with tarfile.open(BOW_DATA_TARBALL, "w:xz") as tar:
+            tar.add(BOW_DATA_JSON, BOW_JSON)
 
     def created_time_series(self) -> Series:
         return self.__time_series(lambda issue: issue.created)
@@ -209,12 +285,13 @@ class Data():
 
     def __items(self) -> List[Issue]:
         if self.filter == Filter.ISSUES:
-            return self.__issues
+            return list(self.__issues.values())
 
         if self.filter == Filter.PULL_REQUESTS:
-            return self.__pull_requests
+            return list(self.__pull_requests.values())
 
-        return self.__issues + self.__pull_requests
+        return list(self.__issues.values()) + list(
+            self.__pull_requests.values())
 
     def __time_series(self, fun: Callable[[Issue],
                                           Optional[datetime]]) -> Series:

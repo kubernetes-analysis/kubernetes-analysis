@@ -10,4 +10,5 @@ disable=
     C0330, # bad-continuation
     E0402, # relative-beyond-top-level
     R0902, # too-many-instance-attributes
+    R0903, # too-few-public-methods
     R0911, # too-many-return-statements

@@ -10,6 +10,7 @@ from .label import Labels
 
 
 class Issue():
+    __id: int
     __title: str
     __url: str
     __number: int
@@ -19,13 +20,15 @@ class Issue():
     __bag_of_words: Optional[BagOfWords]
     __markdown: Optional[str]
 
-    def __init__(self, data: Dict, enable_nlp=False):
+    def __init__(self, data: Dict, parse_nlp=False):
+        self.__id = data["id"]
         self.__title = data["title"]
         self.__url = data["html_url"]
         self.__number = data["number"]
         self.__markdown = data["body"]
+        self.__bag_of_words = None
 
-        if enable_nlp:
+        if parse_nlp:
             self.__bag_of_words = Issue.__parse_bag_of_words(data["body"])
 
         fmt = "%Y-%m-%dT%H:%M:%S%z"
@@ -43,11 +46,11 @@ class Issue():
         if not markdown:
             return None
 
-        text = Issue.__markdown_to_text(markdown)
-        if not text:
+        plain_text = Issue.__markdown_to_text(markdown)
+        if not plain_text:
             return None
 
-        return BagOfWords(text)
+        return BagOfWords(text=plain_text)
 
     @staticmethod
     def __markdown_to_text(markdown: str) -> str:
@@ -65,6 +68,10 @@ class Issue():
         ] or isinstance(element, Comment):
             return False
         return True
+
+    @property
+    def id(self) -> int:
+        return self.__id
 
     @property
     def title(self) -> str:
@@ -91,8 +98,12 @@ class Issue():
         return self.__number
 
     @property
-    def bag_of_words(self) -> Optional[str]:
+    def bag_of_words(self) -> Optional[BagOfWords]:
         return self.__bag_of_words
+
+    @bag_of_words.setter
+    def bag_of_words(self, value: BagOfWords):
+        self.__bag_of_words = value
 
     @property
     def markdown(self) -> Optional[str]:

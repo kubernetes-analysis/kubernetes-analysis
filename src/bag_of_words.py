@@ -13,27 +13,23 @@ nltk.download('wordnet', quiet=True)
 
 
 class BagOfWords():
-    __text: str
     __words: List[str]
 
-    def __init__(self, text: str):
-        self.__text = text
-        self.__words = []
-        self.__parse()
+    def __init__(self, text=None, words=None):
+        self.__words = words
+        if text:
+            self.__words = []
+            self.__parse(text)
 
     @property
     def words(self) -> List[str]:
         return self.__words
 
-    @property
-    def text(self) -> str:
-        return self.__text
-
     def __str__(self) -> str:
-        return "%s (%s)" % (self.text, ", ".join(self.__words))
+        return ", ".join(self.__words)
 
-    def __parse(self):
-        text = self.__text.lower()
+    def __parse(self, input_text: str):
+        text = input_text.lower()
 
         # remove special characters
         text = re.sub(r'[^A-Za-z0-9 ]+', '', text)

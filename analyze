@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import logging
+from typing import Any
 
 import src.log as log
 from src.data import Data, Filter
@@ -9,12 +10,11 @@ from src.plot import Plot
 
 def main():
     args = parse_args()
-
     log.setup(logging.INFO)
     Plot.init()
 
     # Parse the data
-    data = Data(args.enable_nlp)
+    data = Data()
 
     filter_text = "issues and PRs"
     if args.pull_requests:
@@ -76,17 +76,12 @@ def main():
     logging.info("Done")
 
 
-def parse_args():
+def parse_args() -> Any:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-plot-gtk",
                         "-n",
                         action="store_true",
                         help="Do not plot as GTK window")
-
-    parser.add_argument("--enable-nlp",
-                        "-a",
-                        action="store_true",
-                        help="Enable NLP and intense text parsing")
 
     parser.add_argument("--save-svg",
                         "-s",

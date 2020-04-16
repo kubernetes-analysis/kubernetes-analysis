@@ -1,16 +1,15 @@
 ---
 version: 2.1
 
-orbs:
-  python: circleci/python@0.2.1
-
 workflows:
   main:
     jobs:
-      - test
+      - update:
+          name: test
   update:
     jobs:
-      - update
+      - update:
+          commit: true
     triggers:
       - schedule:
           cron: "0 0 * * *"
@@ -19,30 +18,18 @@ workflows:
               only:
                 - master
 
-jobs:
-  test:
-    executor: python/default
-    steps:
-      - add_ssh_keys:
-          fingerprints:
-            - 5f:6f:8d:60:03:5c:11:96:d5:bb:45:b7:0f:8f:9b:17
-      - run:
-          name: Install git lfs
-          command: |
-            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-            sudo apt-get install -y git-lfs
-            git lfs install
-      - checkout
-      - python/load-cache
-      - python/install-deps
-      - run:
-          name: Run update
-          command: |
-            ./export --update-api
-      - python/save-cache
+executors:
+  machine:
+    machine:
+      image: ubuntu-1604:201903-01
 
+jobs:
   update:
-    executor: python/default
+    parameters:
+      commit:
+        type: boolean
+        default: false
+    executor: machine
     steps:
       - add_ssh_keys:
           fingerprints:
@@ -54,21 +41,32 @@ jobs:
             sudo apt-get install -y git-lfs
             git lfs install
       - checkout
-      - python/load-cache
-      - python/install-deps
+      - run:
+          name: Setup dependencies
+          command: |
+            export VERSION=3.7.2
+            pyenv install $VERSION
+            pyenv local $VERSION
+            python --version
+            pip install -r requirements.txt
       - run:
           name: Setup git
           command: |
             git config --global user.name "Sascha Grunert"
             git config --global user.email mail@saschagrunert.de
       - run:
-          name: Run update API
-          command: |
-            ./export --update-api
+          name: Update API
+          command: ./export --update-api
+          no_output_timeout: 60m
+      - run:
+          name: Update bag of words
+          command: ./export --update-bow
+          no_output_timeout: 60m
       - run:
           name: Commit changes
           command: |
-            git add .
-            git commit -m "Update data" || true
-            git push -u origin master
-      - python/save-cache
+            if << parameters.commit >>; then
+              git add .
+              git commit -m "Update data" || true
+              git push -u origin master
+            fi

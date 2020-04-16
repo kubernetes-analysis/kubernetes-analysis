@@ -3,23 +3,29 @@
 ### Kubernetes issue and pull request analysis powered by machine learning
 
 This project aims to provide continuous data analysis of all GitHub issues and
-pull requests in the [Kubernetes][0] repository.
+Pull Requests (PRs) in the [Kubernetes][0] repository.
 
 [0]: http://github.com/kubernetes/kubernetes
 
-#### Data
+#### Data Export and Update
 
 The [data/api.tar.xz][1] file is a compressed JSON file, which contains all the
-raw data from the [GitHub issues API endpoint][2]. This file will be updated on
-a nightly [CircleCI][3] job.
+raw data from the [GitHub issues API endpoint][2], which returns the PRs as
+well. This file will be updated on a nightly [CircleCI][3] job.
 
-Every update job is using the [./export][4] script within this repository to
-keep the datasets up to date.
+The base data for the Natural Language Parsing (NLP) is stored in a separate
+tarball in [data/bow.tar.xz][4]. This archive contains all [Bag of Words][5] for
+the issues and PRs from the local API data set.
+
+Every update job is using the [./export][6] script within this repository to
+keep the data sets up to date.
 
 [1]: data/api.tar.xz
 [2]: https://developer.github.com/v3/issues/#list-repository-issues
 [3]: https://circleci.com/gh/saschagrunert/kubernetes-issue-analysis
-[4]: ./export
+[4]: data/bow.tar.xz
+[5]: https://en.wikipedia.org/wiki/Bag-of-words_model
+[6]: ./export
 
 ### Analysis
 
