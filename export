@@ -10,18 +10,18 @@ from typing import Optional
 from github import Github, Repository
 
 import src.log as log
-from src.data import DATA_JSON, Data
+from src.data import API_DATA_JSON, Data
 
 GITHUB_TOKEN = "GITHUB_TOKEN"
-UPDATE_FILE = ".update"
+API_UPDATE_FILE = ".update_api"
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--update",
+    parser.add_argument("--update-api",
                         "-u",
                         action="store_true",
-                        help="Update the dataset")
+                        help="Update the API dataset")
     args = parser.parse_args()
 
     log.setup(logging.INFO)
@@ -31,12 +31,12 @@ def main():
     github = Github(token)
     repo = github.get_repo("kubernetes/kubernetes")
 
-    if args.update:
+    if args.update_api:
         logging.info("Updating issues")
         update_issues(repo)
     else:
         logging.info("Dumping all issues")
-        dump_all_issues(repo)
+        dump_api(repo)
 
 
 def get_github_token() -> Optional[str]:
@@ -47,7 +47,7 @@ def get_github_token() -> Optional[str]:
     return token
 
 
-def dump_all_issues(repo: Repository):
+def dump_api(repo: Repository):
     result = []
 
     # We use the first (latest) issue as indicator of how many data we have to
@@ -66,17 +66,17 @@ def dump_all_issues(repo: Repository):
             logging.info("Unable to get data, waiting a minute: %s", err)
             time.sleep(60)
 
-    with open(DATA_JSON, "w") as data_file:
+    with open(API_DATA_JSON, "w") as data_file:
         json.dump(result, data_file)
 
     logging.info("Done exporting %d items", i)
-    Data.to_tarball()
+    Data.api_to_tarball()
 
 
 def update_issues(repo: Repository):
     # load the update file contents
-    update_file = open(UPDATE_FILE, "r+")
-    date = datetime.datetime.strptime(update_file.read().strip(),
+    api_update_file = open(API_UPDATE_FILE, "r+")
+    date = datetime.datetime.strptime(api_update_file.read().strip(),
                                       "%Y-%m-%dT%H:%M:%S.%f")
     logging.info("Got update timestamp: %s", date.isoformat())
 
@@ -92,18 +92,18 @@ def update_issues(repo: Repository):
     data = Data()
 
     logging.info("Updating data")
-    data.update(json_list)
+    data.update_api_data(json_list)
 
     logging.info("Saving data")
     data.dump()
 
-    Data.to_tarball()
+    Data.api_to_tarball()
 
     # update the file
-    update_file.seek(0, 0)
+    api_update_file.seek(0, 0)
     new_date = datetime.datetime.utcnow().isoformat()
     logging.info("New update timestamp: %s", new_date)
-    update_file.write(new_date)
+    api_update_file.write(new_date)
 
 
 if __name__ == "__main__":

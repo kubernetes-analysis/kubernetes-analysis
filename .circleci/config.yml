@@ -7,7 +7,7 @@ orbs:
 workflows:
   main:
     jobs:
-      - build
+      - test
   update:
     jobs:
       - update
@@ -20,12 +20,25 @@ workflows:
                 - master
 
 jobs:
-  build:
+  test:
     executor: python/default
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 5f:6f:8d:60:03:5c:11:96:d5:bb:45:b7:0f:8f:9b:17
+      - run:
+          name: Install git lfs
+          command: |
+            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sudo apt-get install -y git-lfs
+            git lfs install
       - checkout
       - python/load-cache
       - python/install-deps
+      - run:
+          name: Run update
+          command: |
+            ./export --update-api
       - python/save-cache
 
   update:
@@ -49,9 +62,9 @@ jobs:
             git config --global user.name "Sascha Grunert"
             git config --global user.email mail@saschagrunert.de
       - run:
-          name: Run update
+          name: Run update API
           command: |
-            ./export -u
+            ./export --update-api
       - run:
           name: Commit changes
           command: |

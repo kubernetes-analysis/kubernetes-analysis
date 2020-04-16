@@ -13,8 +13,10 @@ from .label import Label
 from .pull_request import PullRequest
 from .series import Series
 
-DATA_JSON = "data.json"
-DATA_TARBALL = "data.tar.xz"
+DATA_DIR = "data"
+API_JSON = "api.json"
+API_DATA_JSON = os.path.join(DATA_DIR, API_JSON)
+API_DATA_TARBALL = os.path.join(DATA_DIR, "api.tar.xz")
 
 
 class Filter(Enum):
@@ -27,7 +29,7 @@ class Data():
     __issues: List[Issue]
     __pull_requests: List[PullRequest]
     __filter: Filter
-    __json: List[Any]
+    __api_json: List[Any]
     __enable_nlp: bool
     __include_regex: Optional[str]
     __exclude_regex: Optional[str]
@@ -35,17 +37,17 @@ class Data():
     def __init__(self, enable_nlp=False):
         logging.info("NLP support: %s", enable_nlp)
 
-        Data.__extract()
+        Data.__extract_api_data()
 
         self.__filter = Filter.ALL
         self.__include_regex = None
         self.__exclude_regex = None
         self.__enable_nlp = enable_nlp
 
-        data_file = open(DATA_JSON, "r")
+        api_data_file = open(API_DATA_JSON, "r")
 
         logging.info("Loading JSON content")
-        self.__json = json.load(data_file)
+        self.__api_json = json.load(api_data_file)
 
         self.__init_json()
 
@@ -60,11 +62,11 @@ class Data():
 
             logging.info("Adding pull requests to thread pool")
             e.map(self.__append_pull_request,
-                  [x for x in self.__json if pr_key in x.keys()])
+                  [x for x in self.__api_json if pr_key in x.keys()])
 
             logging.info("Adding issues to thread pool")
             e.map(self.__append_issue,
-                  [x for x in self.__json if pr_key not in x.keys()])
+                  [x for x in self.__api_json if pr_key not in x.keys()])
 
             logging.info("Waiting for executor for finish")
 
@@ -105,31 +107,31 @@ class Data():
             self.__exclude_regex = re.compile(regex)
 
     @staticmethod
-    def to_tarball():
-        logging.info("Compressing data")
-        with tarfile.open(DATA_TARBALL, "w:xz") as tar:
-            tar.add(DATA_JSON)
+    def api_to_tarball():
+        logging.info("Compressing API data")
+        with tarfile.open(API_DATA_TARBALL, "w:xz") as tar:
+            tar.add(API_DATA_JSON, API_JSON)
 
     @staticmethod
-    def __extract():
-        if not os.path.isfile(DATA_JSON):
-            logging.info("Extracting data")
-            tarfile.open(DATA_TARBALL).extractall()
-        else:
+    def __extract_api_data():
+        if os.path.isfile(API_DATA_JSON):
             logging.info("Using already extracted data")
+        else:
+            logging.info("Extracting API data")
+            tarfile.open(API_DATA_TARBALL).extractall(path=DATA_DIR)
 
-    def update(self, json_data: List[Dict]):
+    def update_api_data(self, json_data: List[Dict]):
         new_issues = []
 
         for json_issue in json_data:
             found = False
 
-            for idx, item in enumerate(self.__json):
+            for idx, item in enumerate(self.__api_json):
                 if item["id"] == json_issue["id"]:
                     logging.info("Updating issue %d (updated at %s)",
                                  json_issue["number"],
                                  json_issue["updated_at"])
-                    self.__json[idx] = json_issue
+                    self.__api_json[idx] = json_issue
                     found = True
 
             if not found:
@@ -137,13 +139,13 @@ class Data():
 
         for new_issue in new_issues:
             logging.info("Adding new issue %d", new_issue["number"])
-            self.__json.append(new_issue)
+            self.__api_json.append(new_issue)
 
         self.__init_json()
 
     def dump(self):
-        with open(DATA_JSON, "w") as outfile:
-            json.dump(self.__json, outfile)
+        with open(API_DATA_JSON, "w") as outfile:
+            json.dump(self.__api_json, outfile)
 
     def created_time_series(self) -> Series:
         return self.__time_series(lambda issue: issue.created)
