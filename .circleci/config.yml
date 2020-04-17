@@ -1,0 +1,66 @@
+---
+version: 2.1
+
+workflows:
+  main:
+    jobs:
+      - update:
+          name: test
+  update:
+    jobs:
+      - update:
+          commit: true
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+
+executors:
+  machine:
+    machine:
+      image: ubuntu-1604:201903-01
+
+jobs:
+  update:
+    parameters:
+      commit:
+        type: boolean
+        default: false
+    executor: machine
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 5f:6f:8d:60:03:5c:11:96:d5:bb:45:b7:0f:8f:9b:17
+      - checkout
+      - run:
+          name: Setup dependencies
+          command: |
+            export VERSION=3.7.2
+            pyenv install $VERSION
+            pyenv local $VERSION
+            python --version
+            pip install -r requirements.txt
+      - run:
+          name: Setup git
+          command: |
+            git config --global user.name "Sascha Grunert"
+            git config --global user.email mail@saschagrunert.de
+      - run:
+          name: Update API
+          command: ./export --update-api
+          no_output_timeout: 60m
+      - run:
+          name: Update bag of words
+          command: ./export --update-bow
+          no_output_timeout: 60m
+      - run:
+          name: Commit changes
+          command: |
+            if << parameters.commit >>; then
+              git add .
+              git commit -m "Update data" || true
+              git push -u origin master
+            fi
