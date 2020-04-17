@@ -12,6 +12,8 @@ nltk.download('stopwords', quiet=True)
 nltk.download('averaged_perceptron_tagger', quiet=True)
 nltk.download('wordnet', quiet=True)
 
+SPECIAL_CHARS_RE = re.compile(r"[^A-Za-z0-9 ]+")
+
 
 class BagOfWords():
     __words: List[str]
@@ -38,7 +40,7 @@ class BagOfWords():
         text = input_text.lower()
 
         # remove special characters
-        text = re.sub(r"[^A-Za-z0-9 ]+", "", text)
+        text = SPECIAL_CHARS_RE.sub("", text)
 
         # tokenize markdown and remove puncutation
         words = [word.strip(string.punctuation) for word in text.split(" ")]

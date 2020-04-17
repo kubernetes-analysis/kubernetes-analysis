@@ -12,3 +12,4 @@ disable=
     R0902, # too-many-instance-attributes
     R0903, # too-few-public-methods
     R0911, # too-many-return-statements
+    W0703, # broad-except
