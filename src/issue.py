@@ -14,8 +14,13 @@ class Issue():
     __title: str
     __url: str
     __number: int
+
     __created: datetime
     __closed: Optional[datetime]
+
+    __created_by: str
+    __closed_by: Optional[str]
+
     __labels: Labels
     __bag_of_words: Optional[BagOfWords]
     __markdown: Optional[str]
@@ -38,6 +43,11 @@ class Issue():
             self.__closed = datetime.strptime(data["closed_at"], fmt)
         else:
             self.__closed = None
+
+        self.__created_by = data["user"]["login"]
+        self.__closed_by = None
+        if data["closed_by"]:
+            self.__closed_by = data["closed_by"]["login"]
 
         self.__labels = Labels(data["labels"])
 
@@ -108,3 +118,11 @@ class Issue():
     @property
     def markdown(self) -> Optional[str]:
         return self.__markdown
+
+    @property
+    def created_by(self) -> str:
+        return self.__created_by
+
+    @property
+    def closed_by(self) -> Optional[str]:
+        return self.__closed_by

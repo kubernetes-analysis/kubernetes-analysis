@@ -45,10 +45,13 @@ def main():
         x = plot.time("Created vs closed %s over time" % filter_text)
         plot.annotate_chunked(x)
 
+    if args.labels_by_name or args.labels_by_group or (args.users_by_created or
+                                                       args.users_by_closed):
+        data.include_regex = args.include
+        data.exclude_regex = args.exclude
+
     # Label usage by name
     if args.labels_by_name:
-        data.include_regex = args.include_labels
-        data.exclude_regex = args.exclude_labels
         series = data.label_name_usage_series()
         plot = Plot(series)
         logging.info("Got %d distinct labels and %d results", len(series),
@@ -58,22 +61,39 @@ def main():
 
     # Label usage by name
     if args.labels_by_group:
-        data.include_regex = args.include_labels
-        data.exclude_regex = args.exclude_labels
         series = data.label_group_usage_series()
+        plot = Plot(series)
         logging.info("Got %d distinct label groups and %d results",
                      len(series), sum(series))
         logging.debug("Results:\n%s", series)
         plot.barh("Label usage by label group for %s" % filter_text,
                   args.count)
 
+    # Created by user
+    if args.users_by_created:
+        series = data.user_created_series()
+        plot = Plot(series)
+        logging.info("Got %d distinct users and %d results", len(series),
+                     sum(series))
+        logging.debug("Results:\n%s", series)
+        plot.barh("Created by user for %s" % filter_text, args.count)
+
+    # Closed by user
+    if args.users_by_closed:
+        series = data.user_closed_series()
+        plot = Plot(series)
+        logging.info("Got %d distinct users and %d results", len(series),
+                     sum(series))
+        logging.debug("Results:\n%s", series)
+        plot.barh("Closed by user for %s" % filter_text, args.count)
+
+    logging.info("Done")
+
     if not args.no_plot_gtk:
         Plot.show()
 
     if args.save_svg:
         Plot.save()
-
-    logging.info("Done")
 
 
 def parse_args() -> Any:
@@ -88,17 +108,17 @@ def parse_args() -> Any:
                         action="store_true",
                         help="Save the plot as SVG file")
 
-    parser.add_argument("--include-labels",
+    parser.add_argument("--include",
                         "-l",
                         type=str,
                         metavar="FILTER",
-                        help="Include labels by the provided regex")
+                        help="Include labels or users by the provided regex")
 
-    parser.add_argument("--exclude-labels",
+    parser.add_argument("--exclude",
                         "-e",
                         type=str,
                         metavar="FILTER",
-                        help="Exclude labels by the provided regex")
+                        help="Exclude labels or users by the provided regex")
 
     parser.add_argument("--count",
                         "-c",
@@ -133,6 +153,16 @@ def parse_args() -> Any:
                               "-5",
                               action="store_true",
                               help="show used labels by group")
+
+    select_group.add_argument("--users-by-created",
+                              "-6",
+                              action="store_true",
+                              help="show users by created issues/PRs")
+
+    select_group.add_argument("--users-by-closed",
+                              "-7",
+                              action="store_true",
+                              help="show users by closed issues/PRs")
 
     filter_group = parser.add_mutually_exclusive_group()
     filter_group.add_argument("--pull-requests",

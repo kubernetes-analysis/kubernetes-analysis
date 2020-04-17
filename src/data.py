@@ -51,7 +51,7 @@ class Data():
     def __init__(self, parse_nlp=False):
         Data.__extract_api_data()
 
-        logging.info("Parsing NLP from raw data: %s", parse_nlp)
+        logging.info("Enabled NLP from raw data: %s", parse_nlp)
         self.__bow_json = None
         self.__parse_nlp = parse_nlp
 
@@ -80,16 +80,22 @@ class Data():
         pool_count = os.cpu_count()
         with ThreadPoolExecutor(max_workers=pool_count) as e:
             pr_key = "pull_request"
+            futures = []
 
             logging.info("Adding pull requests to thread pool")
-            e.map(self.__append_pull_request,
-                  [x for x in self.__api_json if pr_key in x.keys()])
+            for x in [x for x in self.__api_json if pr_key in x.keys()]:
+                futures.append(e.submit(self.__append_pull_request, x))
 
             logging.info("Adding issues to thread pool")
-            e.map(self.__append_issue,
-                  [x for x in self.__api_json if pr_key not in x.keys()])
+            for x in [x for x in self.__api_json if pr_key not in x.keys()]:
+                futures.append(e.submit(self.__append_issue, x))
 
             logging.info("Waiting for executor for finish")
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    logging.critical("Parsing failed: %s", e)
 
         logging.info("Parsed %d issues and %d pull requests (%d items)",
                      len(self.__issues), len(self.__pull_requests),
@@ -325,4 +331,32 @@ class Data():
                     res[key][1].append(item)
                 else:
                     res[key] = (label, [item])
+        return sorted(res.values(), key=lambda x: len(x[1]))
+
+    def user_created_series(self) -> Series:
+        return self.__user_series(
+            lambda issue: self.__filter_regex(issue.created_by))
+
+    def user_closed_series(self) -> Series:
+        return self.__user_series(
+            lambda issue: self.__filter_regex(issue.closed_by))
+
+    def __user_series(self, fun: Callable[[Issue], Optional[str]]) -> Series:
+        series = Series()
+        for issue, issues in self.__grouped_by_users(fun):
+            series.add(fun(issue), len(issues))
+        return series
+
+    def __grouped_by_users(
+        self, fun: Callable[[Issue], Optional[str]]
+    ) -> List[Tuple[Issue, List[Issue]]]:
+        res: Dict[str, Tuple[Issue, List[Issue]]] = {}
+        for item in self.__items():
+            user = fun(item)
+            if user is None:
+                continue
+            if user in res:
+                res[user][1].append(item)
+            else:
+                res[user] = (item, [item])
         return sorted(res.values(), key=lambda x: len(x[1]))

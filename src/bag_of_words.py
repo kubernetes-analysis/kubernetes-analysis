@@ -1,3 +1,4 @@
+import logging
 import re
 import string
 from typing import List
@@ -19,7 +20,10 @@ class BagOfWords():
         self.__words = words
         if text:
             self.__words = []
-            self.__parse(text)
+            try:
+                self.__parse(text)
+            except Exception as e:
+                logging.warning("Unable to parse bag of words: %s", e)
 
     @property
     def words(self) -> List[str]:
@@ -29,16 +33,18 @@ class BagOfWords():
         return ", ".join(self.__words)
 
     def __parse(self, input_text: str):
+        wordnet.ensure_loaded()
+
         text = input_text.lower()
 
         # remove special characters
-        text = re.sub(r'[^A-Za-z0-9 ]+', '', text)
+        text = re.sub(r"[^A-Za-z0-9 ]+", "", text)
 
         # tokenize markdown and remove puncutation
         words = [word.strip(string.punctuation) for word in text.split(" ")]
 
         # remove stop words
-        stop = stopwords.words('english')
+        stop = stopwords.words("english")
         words = [x for x in words if x not in stop]
 
         # remove empty tokens
@@ -52,10 +58,6 @@ class BagOfWords():
 
         # remove words with only one letter
         words = [t for t in words if len(t) > 1]
-
-        # remove common words
-        common_words = ['use']
-        words = list(filter(lambda x: x not in common_words, words))
 
         self.__words = words
 
