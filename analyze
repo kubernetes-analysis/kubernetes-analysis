@@ -14,7 +14,7 @@ def main():
     Plot.init()
 
     # Parse the data
-    data = Data()
+    data = Data(parse_nlp=args.parse_nlp)
 
     filter_text = "issues and PRs"
     if args.pull_requests:
@@ -126,6 +126,11 @@ def parse_args() -> Any:
                         metavar="COUNT",
                         default=25,
                         help="Display only the specified amount of labels")
+
+    parser.add_argument("--parse-nlp",
+                        "-r",
+                        action="store_true",
+                        help="Live parse NLP data")
 
     select_group = parser.add_mutually_exclusive_group()
     select_group.add_argument("--created",
