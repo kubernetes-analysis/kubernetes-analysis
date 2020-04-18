@@ -13,19 +13,20 @@ def main():
     log.setup(logging.INFO)
     Plot.init()
 
-    # Parse the data
-    data = Data(parse_nlp=args.parse_nlp)
-
     filter_text = "issues and PRs"
+    fil = Filter.ALL
     if args.pull_requests:
         logging.info("Filtering pull requests only")
         filter_text = "PRs"
-        data.filter = Filter.PULL_REQUESTS
+        fil = Filter.PULL_REQUESTS
 
     if args.issues:
         logging.info("Filtering issues only")
         filter_text = "issues"
-        data.filter = Filter.ISSUES
+        fil = Filter.ISSUES
+
+    # Parse the data
+    data = Data(parse=args.parse, filter_value=fil)
 
     # Created over time
     if args.created:
@@ -127,10 +128,10 @@ def parse_args() -> Any:
                         default=25,
                         help="Display only the specified amount of labels")
 
-    parser.add_argument("--parse-nlp",
+    parser.add_argument("--parse",
                         "-r",
                         action="store_true",
-                        help="Live parse NLP data")
+                        help="Parse data live instead of restoring")
 
     select_group = parser.add_mutually_exclusive_group()
     select_group.add_argument("--created",

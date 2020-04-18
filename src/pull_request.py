@@ -13,13 +13,13 @@ class PullRequest(Issue):
     __release_note: Optional[str]
     __release_note_bag_of_words: Optional[BagOfWords]
 
-    def __init__(self, data: Dict, parse_nlp=False):
-        super().__init__(data, parse_nlp)
+    def __init__(self, data: Dict, parse=False):
+        super().__init__(data, parse)
 
         self.__release_note = None
         self.__release_note_bag_of_words = None
 
-        if parse_nlp:
+        if parse:
             self.__extract_release_note()
             self.__release_note_bag_of_words = BagOfWords(
                 text=self.release_note)
@@ -27,6 +27,10 @@ class PullRequest(Issue):
     @property
     def release_note(self) -> Optional[str]:
         return self.__release_note
+
+    @release_note.setter
+    def release_note(self, value: str):
+        self.__release_note = value
 
     @property
     def release_note_bag_of_words(self) -> Optional[BagOfWords]:

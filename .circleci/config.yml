@@ -44,22 +44,17 @@ jobs:
             python --version
             pip install -r requirements.txt
       - run:
-          name: Setup git
-          command: |
-            git config --global user.name "Sascha Grunert"
-            git config --global user.email mail@saschagrunert.de
-      - run:
           name: Update API
           command: ./export --update-api
-          no_output_timeout: 60m
       - run:
-          name: Update bag of words
-          command: ./export --update-bow
-          no_output_timeout: 60m
+          name: Update data
+          command: ./export --update-data
       - run:
           name: Commit changes
           command: |
             if << parameters.commit >>; then
+              git config --global user.name "Sascha Grunert"
+              git config --global user.email mail@saschagrunert.de
               git add .
               git commit -m "Update data" || true
               git push -u origin master

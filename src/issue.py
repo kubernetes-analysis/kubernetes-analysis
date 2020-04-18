@@ -25,7 +25,7 @@ class Issue():
     __bag_of_words: Optional[BagOfWords]
     __markdown: Optional[str]
 
-    def __init__(self, data: Dict, parse_nlp=False):
+    def __init__(self, data: Dict, parse=False):
         self.__id = data["id"]
         self.__title = data["title"]
         self.__url = data["html_url"]
@@ -33,7 +33,7 @@ class Issue():
         self.__markdown = data["body"]
         self.__bag_of_words = None
 
-        if parse_nlp:
+        if parse:
             self.__bag_of_words = Issue.__parse_bag_of_words(data["body"])
 
         fmt = "%Y-%m-%dT%H:%M:%S%z"

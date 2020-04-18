@@ -10,7 +10,7 @@ from typing import Any, Optional, Tuple
 from github import Github, Repository
 
 import src.log as log
-from src.data import API_DATA_JSON, Data
+from src.data import Data
 
 GITHUB_TOKEN = "GITHUB_TOKEN"
 API_UPDATE_FILE = ".update"
@@ -29,9 +29,10 @@ def main():
         logging.info("Updating API")
         update_api(repo)
 
-    elif args.update_bow:
-        logging.info("Updating bag of words")
-        update_bag_of_words()
+    elif args.update_data:
+        logging.info("Updating local data")
+        Data(parse=True).dump()
+
     else:
         logging.info("Dumping all issues")
         dump_api(repo)
@@ -43,11 +44,11 @@ def parse_args() -> Any:
     update_group.add_argument("--update-api",
                               "-u",
                               action="store_true",
-                              help="Update the API dataset")
-    update_group.add_argument("--update-bow",
-                              "-b",
+                              help="Update the API json")
+    update_group.add_argument("--update-data",
+                              "-d",
                               action="store_true",
-                              help="Update the bag of words dataset")
+                              help="Update the data set")
     return parser.parse_args()
 
 
@@ -78,7 +79,7 @@ def dump_api(repo: Repository):
             logging.info("Unable to get data, waiting a minute: %s", err)
             time.sleep(60)
 
-    with open(API_DATA_JSON, "w") as data_file:
+    with open(Data.API_DATA_JSON, "w") as data_file:
         json.dump(result, data_file)
 
     logging.info("Done exporting %d items", i)
@@ -124,14 +125,6 @@ def write_update_file_date(update_file: Any):
     new_date = datetime.datetime.utcnow().isoformat()
     logging.info("New update timestamp: %s", new_date)
     update_file.write(new_date)
-
-
-def update_bag_of_words():
-    logging.info("Parsing data based on local dataset")
-    data = Data(parse_nlp=True)
-
-    logging.info("Saving data")
-    data.dump_bag_of_words()
 
 
 if __name__ == "__main__":
