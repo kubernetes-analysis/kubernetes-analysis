@@ -1,6 +1,8 @@
+PyGObject
 PyGithub
 bs4
 markdown2
 matplotlib
 nltk
 numpy
+pycairo

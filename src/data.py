@@ -53,6 +53,7 @@ class Data():
         if not parse:
             Data.__extract_data()
             self.__dict__.update(pickle.load(open(Data.PATH, "rb")))
+            self.__filter = filter_value
             return
 
         self.__parse = parse

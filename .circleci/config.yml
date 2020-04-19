@@ -38,9 +38,20 @@ jobs:
       - run:
           name: Setup dependencies
           command: |
-            export VERSION=3.7.2
+            sudo apt-get update
+            sudo apt-get install -y \
+              gir1.2-gtk-3.0 \
+              gobject-introspection \
+              libgirepository1.0-dev
+
+            pushd $(pyenv root)
+            git pull
+            popd
+
+            export VERSION=3.8.2
             pyenv install $VERSION
             pyenv local $VERSION
+
             python --version
             pip install -r requirements.txt
       - run:
@@ -49,6 +60,9 @@ jobs:
       - run:
           name: Update data
           command: ./export --update-data
+      - run:
+          name: Update assets
+          command: make assets
       - run:
           name: Commit changes
           command: |

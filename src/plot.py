@@ -28,8 +28,9 @@ class Plot():
         plt.show()
 
     @staticmethod
-    def save():
-        plt.savefig("plot.svg")
+    def save(file_name: str):
+        logging.info("Saving file to %s", file_name)
+        plt.savefig(file_name)
 
     def time(self, title: str) -> Any:
         subplot = Plot.__subplot(title)
