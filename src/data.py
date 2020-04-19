@@ -47,8 +47,6 @@ class Data():
     PATH = os.path.join(DATA_DIR, FILE)
     TARBALL = os.path.join(DATA_DIR, "data.tar.xz")
 
-    BOW_ALL_KEY = "all"
-    BOW_RELEASE_NOTES_KEY = "release_notes"
     PR_KEY = "pull_request"
 
     def __init__(self, parse=False, filter_value=Filter.ALL):
