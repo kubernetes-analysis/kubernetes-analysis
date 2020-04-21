@@ -1,7 +1,6 @@
 import re
 from typing import Dict, Optional
 
-from .bag_of_words import BagOfWords
 from .issue import Issue
 
 RELEASE_NOTE_REGEX = re.compile(
@@ -11,18 +10,10 @@ RELEASE_NOTE_REGEX = re.compile(
 
 class PullRequest(Issue):
     __release_note: Optional[str]
-    __release_note_bag_of_words: Optional[BagOfWords]
 
-    def __init__(self, data: Dict, parse=False):
-        super().__init__(data, parse)
-
-        self.__release_note = None
-        self.__release_note_bag_of_words = None
-
-        if parse:
-            self.__extract_release_note()
-            self.__release_note_bag_of_words = BagOfWords(
-                text=self.release_note)
+    def __init__(self, data: Dict):
+        super().__init__(data)
+        self.__release_note = self.__extract_release_note()
 
     @property
     def release_note(self) -> Optional[str]:
@@ -32,17 +23,9 @@ class PullRequest(Issue):
     def release_note(self, value: str):
         self.__release_note = value
 
-    @property
-    def release_note_bag_of_words(self) -> Optional[BagOfWords]:
-        return self.__release_note_bag_of_words
-
-    @release_note_bag_of_words.setter
-    def release_note_bag_of_words(self, value: BagOfWords):
-        self.__release_note_bag_of_words = value
-
-    def __extract_release_note(self):
+    def __extract_release_note(self) -> Optional[str]:
         if not self.markdown:
-            return
+            return None
 
         # extract the release note block
         res = []
@@ -62,4 +45,6 @@ class PullRequest(Issue):
             prefix = "- "
             if note.startswith(prefix):
                 note = note[len(prefix):]
-            self.__release_note = note
+            return note
+
+        return None

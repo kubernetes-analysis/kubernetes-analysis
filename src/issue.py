@@ -1,11 +1,6 @@
 from datetime import datetime
 from typing import Dict, Optional
 
-import markdown2
-from bs4 import BeautifulSoup
-from bs4.element import Comment
-
-from .bag_of_words import BagOfWords
 from .label import Labels
 
 
@@ -22,19 +17,14 @@ class Issue():
     __closed_by: Optional[str]
 
     __labels: Labels
-    __bag_of_words: Optional[BagOfWords]
     __markdown: Optional[str]
 
-    def __init__(self, data: Dict, parse=False):
+    def __init__(self, data: Dict):
         self.__id = data["id"]
         self.__title = data["title"]
         self.__url = data["html_url"]
         self.__number = data["number"]
         self.__markdown = data["body"]
-        self.__bag_of_words = None
-
-        if parse:
-            self.__bag_of_words = Issue.__parse_bag_of_words(data["body"])
 
         fmt = "%Y-%m-%dT%H:%M:%S%z"
         self.__created = datetime.strptime(data["created_at"], fmt)
@@ -50,34 +40,6 @@ class Issue():
             self.__closed_by = data["closed_by"]["login"]
 
         self.__labels = Labels(data["labels"])
-
-    @staticmethod
-    def __parse_bag_of_words(markdown: Optional[str]) -> Optional[BagOfWords]:
-        if not markdown:
-            return None
-
-        plain_text = Issue.__markdown_to_text(markdown)
-        if not plain_text:
-            return None
-
-        return BagOfWords(text=plain_text)
-
-    @staticmethod
-    def __markdown_to_text(markdown: str) -> str:
-        html = markdown2.markdown(markdown)
-        soup = BeautifulSoup(html, "html.parser")
-        text_elements = soup.findAll(text=True)
-        visible_texts = filter(Issue.__element_is_visible, text_elements)
-
-        return u" ".join(t.strip() for t in visible_texts)
-
-    @staticmethod
-    def __element_is_visible(element) -> bool:
-        if element.parent.name in [
-                "style", "script", "head", "title", "meta", "[document]"
-        ] or isinstance(element, Comment):
-            return False
-        return True
 
     @property
     def id(self) -> int:
@@ -106,14 +68,6 @@ class Issue():
     @property
     def number(self) -> int:
         return self.__number
-
-    @property
-    def bag_of_words(self) -> Optional[BagOfWords]:
-        return self.__bag_of_words
-
-    @bag_of_words.setter
-    def bag_of_words(self, value: BagOfWords):
-        self.__bag_of_words = value
 
     @property
     def markdown(self) -> Optional[str]:

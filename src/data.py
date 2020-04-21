@@ -28,8 +28,6 @@ class Data():
     __pull_requests: Dict[int, PullRequest]
 
     __filter: Filter
-    __parse: bool
-
     __api_json: Optional[List[Any]]
 
     __include_regex: Optional[str]
@@ -56,7 +54,6 @@ class Data():
             self.__filter = filter_value
             return
 
-        self.__parse = parse
         self.__filter = filter_value
         self.__include_regex = None
         self.__exclude_regex = None
@@ -103,11 +100,11 @@ class Data():
             self.__now = time.process_time()
 
         if self.__filter != Filter.ISSUES and Data.PR_KEY in item:
-            pr = PullRequest(item, self.__parse)
+            pr = PullRequest(item)
             self.__pull_requests[pr.id] = pr
 
         elif self.__filter != Filter.PULL_REQUESTS:
-            issue = Issue(item, self.__parse)
+            issue = Issue(item)
             self.__issues[issue.id] = issue
 
     @property
