@@ -88,6 +88,11 @@ def main():
         logging.debug("Results:\n%s", series)
         plot.barh("Closed by user for %s" % filter_text, args.count)
 
+    # Release notes statistics
+    if args.release_notes_stats:
+        data.release_notes_stats()
+        return
+
     if args.save_svg:
         Plot.save(args.save_svg)
         return
@@ -169,6 +174,11 @@ def parse_args() -> Any:
                               "-7",
                               action="store_true",
                               help="show users by closed issues/PRs")
+
+    select_group.add_argument("--release-notes-stats",
+                              "-8",
+                              action="store_true",
+                              help="show release notes stats for PRs")
 
     filter_group = parser.add_mutually_exclusive_group()
     filter_group.add_argument("--pull-requests",

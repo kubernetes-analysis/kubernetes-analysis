@@ -34,3 +34,9 @@ class Labels():
 
     def __next__(self):
         return next(self.__labels)
+
+    def contains(self, name: str) -> bool:
+        for label in self.__labels:
+            if label.name == name:
+                return True
+        return False

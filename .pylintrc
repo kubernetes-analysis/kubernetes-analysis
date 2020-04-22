@@ -8,8 +8,11 @@ disable=
     C0115, # missing-class-docstring
     C0116, # missing-function-docstring
     C0330, # bad-continuation
+    C0415, # imports-outside-toplevel
     E0402, # relative-beyond-top-level
     R0902, # too-many-instance-attributes
     R0903, # too-few-public-methods
     R0911, # too-many-return-statements
+    R0913, # too-many-arguments
+    R0914, # too-many-locals
     W0703, # broad-except

@@ -10,6 +10,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from .bag_of_words import BagOfWords
 from .issue import Issue
 from .label import Label
 from .pull_request import PullRequest
@@ -47,7 +48,7 @@ class Data():
 
     PR_KEY = "pull_request"
 
-    def __init__(self, parse=False, filter_value=Filter.ALL):
+    def __init__(self, parse: bool = False, filter_value: Filter = Filter.ALL):
         if not parse:
             Data.__extract_data()
             self.__dict__.update(pickle.load(open(Data.PATH, "rb")))
@@ -259,15 +260,18 @@ class Data():
 
     def __label_series(self, fun: Callable[[Label], Optional[str]]) -> Series:
         series = Series()
-        for label, issues in self.__grouped_by_labels(fun):
+        for label, issues in Data.__grouped_by_labels(fun, self.__items()):
             series.add(fun(label), len(issues))
         return series
 
+    @staticmethod
     def __grouped_by_labels(
-        self, fun: Callable[[Label], Optional[str]]
+            fun: Callable[[Label], Optional[str]],
+            items: List[Issue],
+            sort_reverse: bool = False,
     ) -> List[Tuple[Label, List[Issue]]]:
         res: Dict[str, Tuple[Label, List[Issue]]] = {}
-        for item in self.__items():
+        for item in items:
             for label in item.labels:
                 key = fun(label)
                 if key is None:
@@ -276,7 +280,9 @@ class Data():
                     res[key][1].append(item)
                 else:
                     res[key] = (label, [item])
-        return sorted(res.values(), key=lambda x: len(x[1]))
+        return sorted(res.values(),
+                      key=lambda x: len(x[1]),
+                      reverse=sort_reverse)
 
     def user_created_series(self) -> Series:
         return self.__user_series(
@@ -314,3 +320,58 @@ class Data():
         logging.info("Compressing data to %s", Data.TARBALL)
         with tarfile.open(Data.TARBALL, "w:xz") as tar:
             tar.add(Data.PATH, Data.FILE)
+
+    def release_notes_stats(self):
+        prs = list(
+            filter(lambda x: x.release_note, self.__pull_requests.values()))
+        logging.info("%d pull requests have release notes", len(prs))
+
+        label_prs_by_kind = list(
+            filter(
+                lambda x: x[0].group == "kind",
+                Data.__grouped_by_labels(lambda l: l.name,
+                                         prs,
+                                         sort_reverse=True)))
+        logging.info("Those have %d distinct labels in the group 'kind'",
+                     len(label_prs_by_kind))
+
+        logging.info("The statistics are [WPS = Words Per Sample]:")
+        for (label, prs) in label_prs_by_kind:
+            bow_len = 0
+            for pr in prs:
+                bow_len += len(BagOfWords(pr.release_note).words)
+
+            logging.info(" %s: %d entries (~ %.1f WPS)", label.name, len(prs),
+                         bow_len / len(prs))
+
+    def train_from_release_notes(self):
+        import random
+        from .train import Train
+
+        # Randomize the pull requests with release notes
+        prs = list(
+            filter(lambda x: x.release_note, self.__pull_requests.values()))
+        random.shuffle(prs)
+        logging.info("%d pull requests have release notes", len(prs))
+
+        texts = []
+        labels = []
+        for pr in prs:
+            texts.append(pr.release_note)
+            labels.append(1 if pr.labels.contains("kind/bug") else 0)
+
+        # We use 80% for testing and the rest for validation
+        split_at = int(.8 * len(texts))
+
+        train_texts = texts[:split_at]
+        train_labels = labels[:split_at]
+
+        test_texts = texts[split_at + 1:]
+        test_labels = labels[split_at + 1:]
+
+        logging.info("Using %d training and %d testing texts",
+                     len(train_texts), len(test_texts))
+
+        # Run the training
+        training = Train(train_texts, train_labels, test_texts, test_labels)
+        training.run()

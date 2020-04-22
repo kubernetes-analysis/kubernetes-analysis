@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+import logging
+
+import src.log as log
+from src.data import Data
+
+
+def main():
+    log.setup(logging.INFO)
+    Data().train_from_release_notes()
+
+
+if __name__ == "__main__":
+    main()
