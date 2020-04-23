@@ -6,8 +6,12 @@ import tensorflow as tf
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest, f_classif
 
+from .plot import Plot
 
-class Train():
+
+class ML():
+    MODEL_FILE: str = "data/model.h5"
+
     __train_texts: List[str]
     __train_labels: Any
 
@@ -21,13 +25,43 @@ class Train():
         self.__test_texts = test_texts
         self.__test_labels = np.array(test_labels)
 
-    def run(self,
-            learning_rate: float = 1e-3,
-            epochs: int = 1000,
-            batch_size: int = 128,
-            layers: int = 2,
-            units: int = 64,
-            dropout_rate: float = 0.2):
+    def train(self, tune: bool = False):
+        if tune:
+            self.__tune()
+        else:
+            self.__train()
+
+    def __tune(self):
+        num_layers = [1, 2, 3]
+        num_units = [8, 16, 32, 64, 128]
+
+        # Save parameter combination and results
+        params = {
+            "layers": [],
+            "units": [],
+            "accuracy": [],
+        }
+
+        # Iterate over all parameter combinations
+        for layers in num_layers:
+            for units in num_units:
+                params["layers"].append(layers)
+                params["units"].append(units)
+
+                accuracy, _ = self.__train(layers=layers, units=units)
+                logging.info("Accuracy: %d, Layers: %d, Units: %d", accuracy,
+                             layers, units)
+                params["accuracy"].append(accuracy)
+
+        Plot.show_params(params)
+
+    def __train(self,
+                learning_rate: float = 1e-3,
+                epochs: int = 1000,
+                batch_size: int = 128,
+                layers: int = 2,
+                units: int = 64,
+                dropout_rate: float = 0.2):
 
         # Verify that test labels are in the same range as training labels
         num_classes = self.__num_classes()
@@ -44,11 +78,12 @@ class Train():
                 "as training labels.".format(
                     unexpected_labels=unexpected_labels))
 
-        x_train, x_val = self.__vectorize()
+        x_train, x_val = self.__vectorize(self.__train_texts,
+                                          self.__test_texts)
 
         # Create model instance.
-        model = Train.__mlp_model(layers, units, dropout_rate,
-                                  x_train.shape[1:], num_classes)
+        model = ML.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
+                               num_classes)
         logging.info("Created model with %d layers and %d units", layers,
                      units)
 
@@ -81,7 +116,7 @@ class Train():
                      x.history["val_acc"][-1], x.history["val_loss"][-1])
 
         # Save the model
-        model.save("data/model.h5")
+        model.save(ML.MODEL_FILE)
         return x.history["val_acc"][-1], x.history["val_loss"][-1]
 
     def __num_classes(self) -> int:
@@ -105,8 +140,8 @@ class Train():
 
         return num_classes
 
-    def __vectorize(self) -> Tuple[Any, Any]:
-
+    @staticmethod
+    def __vectorize(train: List[str], test: List[str]) -> Tuple[Any, Any]:
         # Create keyword arguments to pass to the vectorizer
         kwargs = {
             "dtype": "int32",
@@ -127,17 +162,17 @@ class Train():
         vectorizer = TfidfVectorizer(**kwargs)
 
         # Learn vocabulary from training texts and vectorize training texts
-        x_train = vectorizer.fit_transform(self.__train_texts)
+        x_train = vectorizer.fit_transform(train)
 
         # Vectorize validation texts
-        x_val = vectorizer.transform(self.__test_texts)
+        x_val = vectorizer.transform(test)
 
         # Limit on the number of features. We use the top 20K features
         top = 20000
 
         # Select top "k" of the vectorized features
         selector = SelectKBest(f_classif, k=min(top, x_train.shape[1]))
-        selector.fit(x_train, self.__train_labels)
+        selector.fit(x_train, train)
 
         x_train = selector.transform(x_train).astype("float32")
         x_val = selector.transform(x_val).astype("float32")
@@ -148,7 +183,7 @@ class Train():
     def __mlp_model(layers: int, units: int, dropout_rate: float,
                     input_shape: Tuple, num_classes: int) -> Any:
 
-        units, activation = Train.__get_last_layer_units_and_activation(
+        units, activation = ML.__get_last_layer_units_and_activation(
             num_classes)
 
         model = tf.keras.models.Sequential()

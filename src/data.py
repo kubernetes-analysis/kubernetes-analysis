@@ -344,21 +344,27 @@ class Data():
             logging.info(" %s: %d entries (~ %.1f WPS)", label.name, len(prs),
                          bow_len / len(prs))
 
-    def train_from_release_notes(self):
-        import random
-        from .train import Train
+    def train_release_notes_by_label(self, label: str, tune: bool):
+        Data.__train(self.__pull_requests.values(), lambda x: x.release_note,
+                     label, tune)
 
-        # Randomize the pull requests with release notes
-        prs = list(
-            filter(lambda x: x.release_note, self.__pull_requests.values()))
-        random.shuffle(prs)
-        logging.info("%d pull requests have release notes", len(prs))
+    @staticmethod
+    def __train(items: List[Any], selector: Callable[[Any], str], label: str,
+                tune: bool):
+        import random
+        from .ml import ML
+        logging.info("Training for label '%s'", label)
+
+        # Filter and randomize the items
+        items = list(filter(selector, items))
+        random.shuffle(items)
+        logging.info("%d items selected", len(items))
 
         texts = []
         labels = []
-        for pr in prs:
-            texts.append(pr.release_note)
-            labels.append(1 if pr.labels.contains("kind/bug") else 0)
+        for item in items:
+            texts.append(selector(item))
+            labels.append(1 if item.labels.contains(label) else 0)
 
         # We use 80% for testing and the rest for validation
         split_at = int(.8 * len(texts))
@@ -373,5 +379,5 @@ class Data():
                      len(train_texts), len(test_texts))
 
         # Run the training
-        training = Train(train_texts, train_labels, test_texts, test_labels)
-        training.run()
+        ml = ML(train_texts, train_labels, test_texts, test_labels)
+        ml.train(tune)
