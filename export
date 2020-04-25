@@ -2,14 +2,13 @@
 import argparse
 import datetime
 import json
-import logging
 import os
 import time
 from typing import Any, Optional, Tuple
 
 from github import Github, Repository
+from loguru import logger
 
-import src.log as log
 from src.data import Data
 
 GITHUB_TOKEN = "GITHUB_TOKEN"
@@ -18,23 +17,22 @@ API_UPDATE_FILE = ".update"
 
 def main():
     args = parse_args()
-    log.setup(logging.INFO)
 
     if args.update_api:
-        logging.info("Retrieving issues and PRs")
+        logger.info("Retrieving issues and PRs")
         token = get_github_token()
         github = Github(token)
         repo = github.get_repo("kubernetes/kubernetes")
 
-        logging.info("Updating API")
+        logger.info("Updating API")
         update_api(repo)
 
     elif args.update_data:
-        logging.info("Updating local data")
+        logger.info("Updating local data")
         Data(parse=True).dump()
 
     else:
-        logging.info("Dumping all issues")
+        logger.info("Dumping all issues")
         dump_api(repo)
 
 
@@ -53,10 +51,10 @@ def parse_args() -> Any:
 
 
 def get_github_token() -> Optional[str]:
-    logging.info("Getting %s from environment variable", GITHUB_TOKEN)
+    logger.info("Getting {} from environment variable", GITHUB_TOKEN)
     token = os.environ.get(GITHUB_TOKEN)
     if token is None:
-        logging.critical("%s environment variable not set", GITHUB_TOKEN)
+        logger.critical("{} environment variable not set", GITHUB_TOKEN)
     return token
 
 
@@ -68,21 +66,21 @@ def dump_api(repo: Repository):
     issues = repo.get_issues(state="all")
     latest_issue = issues[0]
     count = latest_issue.number
-    logging.info("Pulling %d items", count)
+    logger.info("Pulling {} items", count)
 
     for i in range(1, count + 1):
         try:
             issue = repo.get_issue(i)
-            logging.info("%u: %s", issue.number, issue.title)
+            logger.info("{}: {}", issue.number, issue.title)
             result.append(issue.raw_data)
         except Exception as err:
-            logging.info("Unable to get data, waiting a minute: %s", err)
+            logger.info("Unable to get data, waiting a minute: {}", err)
             time.sleep(60)
 
     with open(Data.API_DATA_JSON, "w") as data_file:
         json.dump(result, data_file)
 
-    logging.info("Done exporting %d items", i)
+    logger.info("Done exporting {} items", i)
     Data.api_to_tarball()
 
 
@@ -95,15 +93,15 @@ def update_api(repo: Repository):
             sort="updated",
             state="all",
     ):
-        logging.info("%d: %s", issue.number, issue.title)
+        logger.info("{}: {}", issue.number, issue.title)
         json_list.append(issue.raw_data)
 
     data = Data()
 
-    logging.info("Updating data")
+    logger.info("Updating data")
     data.update_api_data(json_list)
 
-    logging.info("Saving data")
+    logger.info("Saving data")
     data.dump_api()
 
     Data.api_to_tarball()
@@ -115,7 +113,7 @@ def get_update_file_date(file_name: str) -> Tuple[Any, Any]:
     update_file = open(file_name, "r+")
     date = datetime.datetime.strptime(update_file.read().strip(),
                                       "%Y-%m-%dT%H:%M:%S.%f")
-    logging.info("Got update timestamp: %s", date.isoformat())
+    logger.info("Got update timestamp: {}", date.isoformat())
     return (update_file, date)
 
 
@@ -123,7 +121,7 @@ def write_update_file_date(update_file: Any):
     # update the file
     update_file.seek(0, 0)
     new_date = datetime.datetime.utcnow().isoformat()
-    logging.info("New update timestamp: %s", new_date)
+    logger.info("New update timestamp: {}", new_date)
     update_file.write(new_date)
 
 

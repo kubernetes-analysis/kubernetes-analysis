@@ -1,10 +1,10 @@
-import logging
 from typing import Any, Dict, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.style as style
 import matplotlib.ticker as ticker
+from loguru import logger
 from matplotlib import cm
 
 from .series import Series
@@ -42,7 +42,7 @@ class Plot():
 
     @staticmethod
     def save(file_name: str):
-        logging.info("Saving file to %s", file_name)
+        logger.info("Saving file to {}", file_name)
         plt.savefig(file_name)
 
     def time(self, title: str) -> Any:
@@ -56,7 +56,7 @@ class Plot():
         fmt = ticker.StrMethodFormatter("{x:.0f}")
         plt.gca().xaxis.set_major_formatter(fmt)
 
-        logging.info("Limiting bar plot to %d items", count)
+        logger.info("Limiting bar plot to {} items", count)
         max_xs = self.__series.x[-count:]
         max_ys = self.__series.y[-count:]
 

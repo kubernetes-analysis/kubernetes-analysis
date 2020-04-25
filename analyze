@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 import argparse
-import logging
 from typing import Any
 
-import src.log as log
+from loguru import logger
+
 from src.data import Data, Filter
 from src.plot import Plot
 
 
 def main():
     args = parse_args()
-    log.setup(logging.INFO)
     Plot.init()
 
     filter_text = "issues and PRs"
     fil = Filter.ALL
     if args.pull_requests:
-        logging.info("Filtering pull requests only")
+        logger.info("Filtering pull requests only")
         filter_text = "PRs"
         fil = Filter.PULL_REQUESTS
 
     if args.issues:
-        logging.info("Filtering issues only")
+        logger.info("Filtering issues only")
         filter_text = "issues"
         fil = Filter.ISSUES
 
@@ -55,18 +54,18 @@ def main():
     if args.labels_by_name:
         series = data.label_name_usage_series()
         plot = Plot(series)
-        logging.info("Got %d distinct labels and %d results", len(series),
-                     sum(series))
-        logging.debug("Results:\n%s", series)
+        logger.info("Got {} distinct labels and {} results", len(series),
+                    sum(series))
+        logger.debug("Results:\n{}", series)
         plot.barh("Label usage by name for %s" % filter_text, args.count)
 
     # Label usage by name
     if args.labels_by_group:
         series = data.label_group_usage_series()
         plot = Plot(series)
-        logging.info("Got %d distinct label groups and %d results",
-                     len(series), sum(series))
-        logging.debug("Results:\n%s", series)
+        logger.info("Got {} distinct label groups and {} results", len(series),
+                    sum(series))
+        logger.debug("Results:\n{}", series)
         plot.barh("Label usage by label group for %s" % filter_text,
                   args.count)
 
@@ -74,18 +73,18 @@ def main():
     if args.users_by_created:
         series = data.user_created_series()
         plot = Plot(series)
-        logging.info("Got %d distinct users and %d results", len(series),
-                     sum(series))
-        logging.debug("Results:\n%s", series)
+        logger.info("Got {} distinct users and {} results", len(series),
+                    sum(series))
+        logger.debug("Results:\n{}", series)
         plot.barh("Created by user for %s" % filter_text, args.count)
 
     # Closed by user
     if args.users_by_closed:
         series = data.user_closed_series()
         plot = Plot(series)
-        logging.info("Got %d distinct users and %d results", len(series),
-                     sum(series))
-        logging.debug("Results:\n%s", series)
+        logger.info("Got {} distinct users and {} results", len(series),
+                    sum(series))
+        logger.debug("Results:\n{}", series)
         plot.barh("Closed by user for %s" % filter_text, args.count)
 
     # Release notes statistics

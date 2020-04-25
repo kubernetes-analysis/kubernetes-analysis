@@ -1,8 +1,10 @@
-import logging
+import os
+import pickle
 from typing import Any, List, Tuple
 
 import numpy as np
 import tensorflow as tf
+from loguru import logger
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest, f_classif
 
@@ -10,7 +12,9 @@ from .plot import Plot
 
 
 class ML():
-    MODEL_FILE: str = "data/model.h5"
+    DATA_DIR = "data"
+    MODEL_FILE = os.path.join(DATA_DIR, "model.h5")
+    VECTORIZER_FILE = os.path.join(DATA_DIR, "vectorizer.pickle")
 
     __train_texts: List[str]
     __train_labels: Any
@@ -24,6 +28,20 @@ class ML():
         self.__train_labels = np.array(train_labels)
         self.__test_texts = test_texts
         self.__test_labels = np.array(test_labels)
+
+    @staticmethod
+    def predict(text: str) -> float:
+        # Load the vectorizer
+        vectorizer = pickle.load(open(ML.VECTORIZER_FILE, "rb"))
+
+        # Prepare the input data
+        data = vectorizer.transform([text]).toarray()
+
+        # Load the model and predict
+        model = tf.keras.models.load_model(ML.MODEL_FILE)
+        result = model.predict(data)
+
+        return result[0][0].item()
 
     def train(self, tune: bool = False):
         if tune:
@@ -49,8 +67,8 @@ class ML():
                 params["units"].append(units)
 
                 accuracy, _ = self.__train(layers=layers, units=units)
-                logging.info("Accuracy: %d, Layers: %d, Units: %d", accuracy,
-                             layers, units)
+                logger.info("Accuracy: {}, Layers: {}, Units: {}", accuracy,
+                            layers, units)
                 params["accuracy"].append(accuracy)
 
         Plot.show_params(params)
@@ -65,7 +83,7 @@ class ML():
 
         # Verify that test labels are in the same range as training labels
         num_classes = self.__num_classes()
-        logging.info("Number of classes: %d", num_classes)
+        logger.info("Number of classes: {}", num_classes)
 
         unexpected_labels = [
             v for v in self.__test_labels if v not in range(num_classes)
@@ -78,14 +96,12 @@ class ML():
                 "as training labels.".format(
                     unexpected_labels=unexpected_labels))
 
-        x_train, x_val = self.__vectorize(self.__train_texts,
-                                          self.__test_texts)
+        x_train, x_val = ML.__vectorize(self.__train_texts, self.__test_texts)
 
         # Create model instance.
         model = ML.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
                                num_classes)
-        logging.info("Created model with %d layers and %d units", layers,
-                     units)
+        logger.info("Created model with {} layers and {} units", layers, units)
 
         # Compile model with learning parameters.
         if num_classes == 2:
@@ -112,11 +128,12 @@ class ML():
             verbose=2,  # logs once per epoch
             batch_size=batch_size)
 
-        logging.info("Validation accuracy: %f, loss: %f",
-                     x.history["val_acc"][-1], x.history["val_loss"][-1])
-
         # Save the model
         model.save(ML.MODEL_FILE)
+
+        logger.info("Validation accuracy: {}, loss: {}",
+                    x.history["val_acc"][-1], x.history["val_loss"][-1])
+
         return x.history["val_acc"][-1], x.history["val_loss"][-1]
 
     def __num_classes(self) -> int:
@@ -127,39 +144,37 @@ class ML():
 
         if len(missing_classes) > 0:
             raise ValueError("Missing samples with label value(s) "
-                             "{missing_classes}. Please make sure you have "
+                             "{}. Please make sure you have "
                              "at least one sample for every label value "
-                             "in the range(0, {max_class})".format(
-                                 missing_classes=missing_classes,
-                                 max_class=num_classes - 1))
+                             "in the range(0, {})".format(
+                                 missing_classes, num_classes - 1))
 
         if num_classes <= 1:
-            raise ValueError("Invalid number of labels: {num_classes}."
+            raise ValueError("Invalid number of labels: {}."
                              "Please make sure there are at least two classes "
-                             "of samples".format(num_classes=num_classes))
+                             "of samples".format(num_classes))
 
         return num_classes
 
     @staticmethod
     def __vectorize(train: List[str], test: List[str]) -> Tuple[Any, Any]:
-        # Create keyword arguments to pass to the vectorizer
-        kwargs = {
-            "dtype": "int32",
-            "strip_accents": "unicode",
-            "decode_error": "replace",
+        vectorizer = TfidfVectorizer(
+            # Split text into word tokens.
+            analyzer="word",
+
+            # Replace on decoding error
+            decode_error="replace",
 
             # Use 1-grams + 2-grams
-            "ngram_range": (1, 2),
-
-            # Split text into word tokens.
-            "analyzer": "word",
+            ngram_range=(1, 2),
 
             # Minimum document/corpus frequency below which a token will be
             # discarded
-            "min_df": 2,
-        }
+            min_df=2,
 
-        vectorizer = TfidfVectorizer(**kwargs)
+            # Remove accents and perform other character normalization
+            strip_accents="unicode",
+        )
 
         # Learn vocabulary from training texts and vectorize training texts
         x_train = vectorizer.fit_transform(train)
@@ -176,6 +191,9 @@ class ML():
 
         x_train = selector.transform(x_train).astype("float32")
         x_val = selector.transform(x_val).astype("float32")
+
+        # Save the vectorizer
+        pickle.dump(vectorizer, open(ML.VECTORIZER_FILE, "wb"))
 
         return x_train.toarray(), x_val.toarray()
 

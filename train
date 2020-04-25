@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-import logging
 from typing import Any
 
-import src.log as log
 from src.data import Data
 
 DEFAULT_LABEL = "kind/bug"
@@ -11,8 +9,7 @@ DEFAULT_LABEL = "kind/bug"
 
 def main():
     args = parse_args()
-    log.setup(logging.INFO)
-    Data().train_release_notes_by_label(args.label, tune=args.tune)
+    Data().train_release_notes_by_label(args.label, args.tune)
 
 
 def parse_args() -> Any:

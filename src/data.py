@@ -1,7 +1,7 @@
 import json
-import logging
 import os
 import pickle
+import random
 import re
 import tarfile
 import time
@@ -10,9 +10,12 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from loguru import logger
+
 from .bag_of_words import BagOfWords
 from .issue import Issue
 from .label import Label
+from .ml import ML
 from .pull_request import PullRequest
 from .series import Series
 
@@ -59,16 +62,16 @@ class Data():
         self.__include_regex = None
         self.__exclude_regex = None
 
-        logging.info("Parsing data")
+        logger.info("Parsing data")
         Data.__extract_api_data()
 
         api_data_file = open(Data.API_DATA_JSON, "r")
-        logging.info("Loading API JSON file")
+        logger.info("Loading API JSON file")
         self.__api_json = json.load(api_data_file)
         self.__init_api_json()
 
     def __init_api_json(self):
-        logging.info("Parsing API JSON content")
+        logger.info("Parsing API JSON content")
         self.__issues = {}
         self.__pull_requests = {}
 
@@ -77,27 +80,27 @@ class Data():
         self.__now = time.process_time()
 
         futures = []
-        logging.info("Adding work items to thread pool")
+        logger.info("Adding work items to thread pool")
         for i, item in enumerate(self.__api_json):
             futures.append(executor.submit(self.__parse_api_item, item, i))
 
-        logging.info("Waiting for executor for finish")
+        logger.info("Waiting for executor for finish")
         for future in futures:
             try:
                 future.result()
             except Exception as e:
-                logging.critical("Parsing failed: %s", e)
+                logger.critical("Parsing failed: {}", e)
 
-        logging.info("Parsed %d issues and %d pull requests (%d items)",
-                     len(self.__issues), len(self.__pull_requests),
-                     len(self.__issues) + len(self.__pull_requests))
+        logger.info("Parsed {} issues and {} pull requests ({} items)",
+                    len(self.__issues), len(self.__pull_requests),
+                    len(self.__issues) + len(self.__pull_requests))
 
     def __parse_api_item(self, item: Dict, i: int):
         if time.process_time() - self.__now > 10:
-            logging.info("%.1f%% (%d / %d) [%d PRs / %d issues]",
-                         i / len(self.__api_json) * 100, i,
-                         len(self.__api_json), len(self.__pull_requests),
-                         len(self.__issues))
+            logger.info("{}% ({} / {}) [{} PRs / {} issues]",
+                        round(i / len(self.__api_json) * 100, 2), i,
+                        len(self.__api_json), len(self.__pull_requests),
+                        len(self.__issues))
             self.__now = time.process_time()
 
         if self.__filter != Filter.ISSUES and Data.PR_KEY in item:
@@ -128,7 +131,7 @@ class Data():
 
     @staticmethod
     def api_to_tarball():
-        logging.info("Compressing API data")
+        logger.info("Compressing API data")
         with tarfile.open(Data.API_DATA_TARBALL, "w:xz") as tar:
             tar.add(Data.API_DATA_JSON, Data.API_JSON)
 
@@ -143,9 +146,9 @@ class Data():
     @staticmethod
     def __extract(tarball: str, target_file: str):
         if os.path.isfile(target_file):
-            logging.info("Using already extracted data from %s", target_file)
+            logger.info("Using already extracted data from {}", target_file)
         else:
-            logging.info("Extracting API data")
+            logger.info("Extracting API data")
             tarfile.open(tarball).extractall(path=Data.DATA_DIR)
 
     def update_api_data(self, json_data: List[Dict]):
@@ -156,9 +159,8 @@ class Data():
 
             for idx, item in enumerate(self.__api_json):
                 if item["id"] == json_issue["id"]:
-                    logging.info("Updating issue %d (updated at %s)",
-                                 json_issue["number"],
-                                 json_issue["updated_at"])
+                    logger.info("Updating issue {} (updated at {})",
+                                json_issue["number"], json_issue["updated_at"])
                     self.__api_json[idx] = json_issue
                     found = True
 
@@ -166,7 +168,7 @@ class Data():
                 new_issues.append(json_issue)
 
         for new_issue in new_issues:
-            logging.info("Adding new issue %d", new_issue["number"])
+            logger.info("Adding new issue {}", new_issue["number"])
             self.__api_json.append(new_issue)
 
         self.__init_api_json()
@@ -313,18 +315,18 @@ class Data():
         return sorted(res.values(), key=lambda x: len(x[1]))
 
     def dump(self):
-        logging.info("Saving data to %s", Data.PATH)
+        logger.info("Saving data to {}", Data.PATH)
         with open(Data.PATH, "wb") as outfile:
             pickle.dump(self.__dict__, outfile)
 
-        logging.info("Compressing data to %s", Data.TARBALL)
+        logger.info("Compressing data to {}", Data.TARBALL)
         with tarfile.open(Data.TARBALL, "w:xz") as tar:
             tar.add(Data.PATH, Data.FILE)
 
     def release_notes_stats(self):
         prs = list(
             filter(lambda x: x.release_note, self.__pull_requests.values()))
-        logging.info("%d pull requests have release notes", len(prs))
+        logger.info("{} pull requests have release notes", len(prs))
 
         label_prs_by_kind = list(
             filter(
@@ -332,17 +334,17 @@ class Data():
                 Data.__grouped_by_labels(lambda l: l.name,
                                          prs,
                                          sort_reverse=True)))
-        logging.info("Those have %d distinct labels in the group 'kind'",
-                     len(label_prs_by_kind))
+        logger.info("Those have {} distinct labels in the group 'kind'",
+                    len(label_prs_by_kind))
 
-        logging.info("The statistics are [WPS = Words Per Sample]:")
+        logger.info("The statistics are [WPS = Words Per Sample]:")
         for (label, prs) in label_prs_by_kind:
             bow_len = 0
             for pr in prs:
                 bow_len += len(BagOfWords(pr.release_note).words)
 
-            logging.info(" %s: %d entries (~ %.1f WPS)", label.name, len(prs),
-                         bow_len / len(prs))
+            logger.info(" {}: {} entries (~ {} WPS)", label.name, len(prs),
+                        round(bow_len / len(prs), 1))
 
     def train_release_notes_by_label(self, label: str, tune: bool):
         Data.__train(self.__pull_requests.values(), lambda x: x.release_note,
@@ -351,14 +353,12 @@ class Data():
     @staticmethod
     def __train(items: List[Any], selector: Callable[[Any], str], label: str,
                 tune: bool):
-        import random
-        from .ml import ML
-        logging.info("Training for label '%s'", label)
+        logger.info("Training for label '{}'", label)
 
         # Filter and randomize the items
         items = list(filter(selector, items))
         random.shuffle(items)
-        logging.info("%d items selected", len(items))
+        logger.info("{} items selected", len(items))
 
         texts = []
         labels = []
@@ -375,8 +375,8 @@ class Data():
         test_texts = texts[split_at + 1:]
         test_labels = labels[split_at + 1:]
 
-        logging.info("Using %d training and %d testing texts",
-                     len(train_texts), len(test_texts))
+        logger.info("Using {} training and {} testing texts", len(train_texts),
+                    len(test_texts))
 
         # Run the training
         ml = ML(train_texts, train_labels, test_texts, test_labels)
