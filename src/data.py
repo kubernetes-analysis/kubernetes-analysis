@@ -12,10 +12,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from loguru import logger
 
-from .bag_of_words import BagOfWords
 from .issue import Issue
 from .label import Label
-from .ml import ML
+from .nlp import Nlp
 from .pull_request import PullRequest
 from .series import Series
 
@@ -54,7 +53,11 @@ class Data():
     def __init__(self, parse: bool = False, filter_value: Filter = Filter.ALL):
         if not parse:
             Data.__extract_data()
+
+            logger.info("Loading pickle dataset")
             self.__dict__.update(pickle.load(open(Data.PATH, "rb")))
+            self.__log_summary()
+
             self.__filter = filter_value
             return
 
@@ -91,6 +94,9 @@ class Data():
             except Exception as e:
                 logger.critical("Parsing failed: {}", e)
 
+        self.__log_summary()
+
+    def __log_summary(self):
         logger.info("Parsed {} issues and {} pull requests ({} items)",
                     len(self.__issues), len(self.__pull_requests),
                     len(self.__issues) + len(self.__pull_requests))
@@ -337,14 +343,13 @@ class Data():
         logger.info("Those have {} distinct labels in the group 'kind'",
                     len(label_prs_by_kind))
 
-        logger.info("The statistics are [WPS = Words Per Sample]:")
+        logger.info("The statistics are:")
         for (label, prs) in label_prs_by_kind:
-            bow_len = 0
-            for pr in prs:
-                bow_len += len(BagOfWords(pr.release_note).words)
-
-            logger.info(" {}: {} entries (~ {} WPS)", label.name, len(prs),
-                        round(bow_len / len(prs), 1))
+            logger.info(
+                "{}: {} entries",
+                label.name,
+                len(prs),
+            )
 
     def train_release_notes_by_label(self, label: str, tune: bool):
         Data.__train(self.__pull_requests.values(), lambda x: x.release_note,
@@ -379,5 +384,4 @@ class Data():
                     len(test_texts))
 
         # Run the training
-        ml = ML(train_texts, train_labels, test_texts, test_labels)
-        ml.train(tune)
+        Nlp(train_texts, train_labels, test_texts, test_labels).train(tune)

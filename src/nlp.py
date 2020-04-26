@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 from typing import Any, List, Tuple
@@ -6,12 +7,9 @@ import numpy as np
 import tensorflow as tf
 from loguru import logger
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_selection import SelectKBest, f_classif
-
-from .plot import Plot
 
 
-class ML():
+class Nlp():
     DATA_DIR = "data"
     MODEL_FILE = os.path.join(DATA_DIR, "model.h5")
     VECTORIZER_FILE = os.path.join(DATA_DIR, "vectorizer.pickle")
@@ -32,13 +30,13 @@ class ML():
     @staticmethod
     def predict(text: str) -> float:
         # Load the vectorizer
-        vectorizer = pickle.load(open(ML.VECTORIZER_FILE, "rb"))
+        vectorizer = pickle.load(open(Nlp.VECTORIZER_FILE, "rb"))
 
         # Prepare the input data
         data = vectorizer.transform([text]).toarray()
 
         # Load the model and predict
-        model = tf.keras.models.load_model(ML.MODEL_FILE)
+        model = tf.keras.models.load_model(Nlp.MODEL_FILE)
         result = model.predict(data)
 
         return result[0][0].item()
@@ -71,7 +69,7 @@ class ML():
                             layers, units)
                 params["accuracy"].append(accuracy)
 
-        Plot.show_params(params)
+        logger.info("Tuning results: {}", params)
 
     def __train(self,
                 learning_rate: float = 1e-3,
@@ -96,11 +94,11 @@ class ML():
                 "as training labels.".format(
                     unexpected_labels=unexpected_labels))
 
-        x_train, x_val = ML.__vectorize(self.__train_texts, self.__test_texts)
+        x_train, x_val = Nlp.__vectorize(self.__train_texts, self.__test_texts)
 
         # Create model instance.
-        model = ML.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
-                               num_classes)
+        model = Nlp.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
+                                num_classes)
         logger.info("Created model with {} layers and {} units", layers, units)
 
         # Compile model with learning parameters.
@@ -129,7 +127,7 @@ class ML():
             batch_size=batch_size)
 
         # Save the model
-        model.save(ML.MODEL_FILE)
+        model.save(Nlp.MODEL_FILE)
 
         logger.info("Validation accuracy: {}, loss: {}",
                     x.history["val_acc"][-1], x.history["val_loss"][-1])
@@ -170,7 +168,7 @@ class ML():
 
             # Minimum document/corpus frequency below which a token will be
             # discarded
-            min_df=2,
+            min_df=1,  # maybe use 2
 
             # Remove accents and perform other character normalization
             strip_accents="unicode",
@@ -179,21 +177,16 @@ class ML():
         # Learn vocabulary from training texts and vectorize training texts
         x_train = vectorizer.fit_transform(train)
 
+        logger.info("Vocabulary len: {}", len(vectorizer.get_feature_names()))
+        with open(os.path.join(Nlp.DATA_DIR, "features.json"), "w") as f:
+            json.dump(vectorizer.get_feature_names(), f)
+            logger.info("Wrote features to file {}", f.name)
+
         # Vectorize validation texts
         x_val = vectorizer.transform(test)
 
-        # Limit on the number of features. We use the top 20K features
-        top = 20000
-
-        # Select top "k" of the vectorized features
-        selector = SelectKBest(f_classif, k=min(top, x_train.shape[1]))
-        selector.fit(x_train, train)
-
-        x_train = selector.transform(x_train).astype("float32")
-        x_val = selector.transform(x_val).astype("float32")
-
         # Save the vectorizer
-        pickle.dump(vectorizer, open(ML.VECTORIZER_FILE, "wb"))
+        pickle.dump(vectorizer, open(Nlp.VECTORIZER_FILE, "wb"))
 
         return x_train.toarray(), x_val.toarray()
 
@@ -201,7 +194,7 @@ class ML():
     def __mlp_model(layers: int, units: int, dropout_rate: float,
                     input_shape: Tuple, num_classes: int) -> Any:
 
-        units, activation = ML.__get_last_layer_units_and_activation(
+        units, activation = Nlp.__get_last_layer_units_and_activation(
             num_classes)
 
         model = tf.keras.models.Sequential()
@@ -227,4 +220,6 @@ class ML():
             activation = "softmax"
             units = num_classes
 
+        logger.info("Using units: {}", units)
+        logger.info("Using activation function: {}", activation)
         return units, activation

@@ -2,7 +2,6 @@ PyGObject
 PyGithub
 loguru
 matplotlib
-nltk
 numpy
 pycairo
 sklearn

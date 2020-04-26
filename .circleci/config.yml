@@ -56,13 +56,13 @@ jobs:
             pip install -r requirements.txt
       - run:
           name: Update API
-          command: ./export --update-api
+          command: ./main export --update-api
       - run:
           name: Update data
-          command: ./export --update-data
+          command: ./main export --update-data
       - run:
-          name: Traing
-          command: ./train
+          name: Test Model
+          command: ./main predict --test
       - run:
           name: Update assets
           command: make assets

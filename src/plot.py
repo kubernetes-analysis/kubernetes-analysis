@@ -1,11 +1,10 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.style as style
 import matplotlib.ticker as ticker
 from loguru import logger
-from matplotlib import cm
 
 from .series import Series
 
@@ -22,18 +21,6 @@ class Plot():
 
     def __init__(self, series: Series):
         self.__series = series
-
-    @staticmethod
-    def show_params(params: Dict):
-        Plot.init()
-        fig = plt.figure()
-        ax = fig.gca(projection="3d")
-        ax.plot_trisurf(params["layers"],
-                        params["units"],
-                        params["accuracy"],
-                        cmap=cm.get_cmap("coolwarm"),
-                        antialiased=False)
-        Plot.show()
 
     @staticmethod
     def show():

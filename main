@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import argparse
+from typing import Any
+
+from src.analyze import Analyze
+from src.export import Export
+from src.predict import Predict
+from src.train import Train
+
+COMMAND_EXPORT = "export"
+COMMAND_ANALYZE = "analyze"
+COMMAND_TRAIN = "train"
+COMMAND_PREDICT = "predict"
+
+
+def main():
+    args = parse_args()
+
+    if args.command == COMMAND_EXPORT:
+        Export(args).run()
+
+    if args.command == COMMAND_ANALYZE:
+        Analyze(args).run()
+
+    if args.command == COMMAND_TRAIN:
+        Train(args).run()
+
+    if args.command == COMMAND_PREDICT:
+        Predict(args).run()
+
+
+def parse_args() -> Any:
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.required = True
+
+    Export.add_parser(COMMAND_EXPORT, subparsers)
+    Analyze.add_parser(COMMAND_ANALYZE, subparsers)
+    Train.add_parser(COMMAND_TRAIN, subparsers)
+    Predict.add_parser(COMMAND_PREDICT, subparsers)
+
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()
