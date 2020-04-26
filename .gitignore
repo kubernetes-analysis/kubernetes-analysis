@@ -1,6 +1,6 @@
 *$py.class
 *.json
-*.pickle
 *.py[cod]
 .mypy_cache/
 __pycache__/
+data/data.pickle
