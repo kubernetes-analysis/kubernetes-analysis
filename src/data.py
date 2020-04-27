@@ -306,8 +306,10 @@ class Data():
             series.add(fun(issue), len(issues))
         return series
 
+    # yapf: disable
     def __grouped_by_users(
-        self, fun: Callable[[Issue], Optional[str]]
+            self,
+            fun: Callable[[Issue], Optional[str]],
     ) -> List[Tuple[Issue, List[Issue]]]:
         res: Dict[str, Tuple[Issue, List[Issue]]] = {}
         for item in self.__items():

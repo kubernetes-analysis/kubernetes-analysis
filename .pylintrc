@@ -7,7 +7,6 @@ disable=
     C0114, # missing-module-docstring
     C0115, # missing-class-docstring
     C0116, # missing-function-docstring
-    C0330, # bad-continuation
     E0402, # relative-beyond-top-level
     R0801, # duplicate-code
     R0902, # too-many-instance-attributes
