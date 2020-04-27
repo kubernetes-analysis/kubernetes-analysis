@@ -61,11 +61,14 @@ jobs:
           name: Update data
           command: ./main export --update-data
       - run:
+          name: Update assets
+          command: make assets
+      - run:
           name: Test Model
           command: ./main predict --test
       - run:
-          name: Update assets
-          command: make assets
+          name: Build Pipeline
+          command: ./main pipeline
       - run:
           name: Commit changes
           command: |

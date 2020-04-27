@@ -2,23 +2,18 @@ import datetime
 import json
 import os
 import time
-from argparse import Namespace
 from typing import Any, Optional, Tuple
 
 from github import Github, Repository
 from loguru import logger
 
+from .cli import Cli
 from .data import Data
 
 
-class Export():
+class Export(Cli):
     GITHUB_TOKEN = "GITHUB_TOKEN"
     API_UPDATE_FILE = ".update"
-
-    __args: Namespace
-
-    def __init__(self, args: Namespace):
-        self.__args = args
 
     @staticmethod
     def add_parser(command: str, subparsers: Any):
@@ -38,7 +33,7 @@ class Export():
                                   help="Update the data set")
 
     def run(self):
-        if self.__args.update_api:
+        if self.args.update_api:
             logger.info("Retrieving issues and PRs")
             token = Export.get_github_token()
             github = Github(token)
@@ -47,7 +42,7 @@ class Export():
             logger.info("Updating API")
             Export.update_api(repo)
 
-        elif self.__args.update_data:
+        elif self.args.update_data:
             logger.info("Updating local data")
             Data(parse=True).dump()
 

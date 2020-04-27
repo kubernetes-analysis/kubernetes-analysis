@@ -1,15 +1,10 @@
-from argparse import Namespace
 from typing import Any
 
+from .cli import Cli
 from .data import Data
 
 
-class Train():
-    __args: Namespace
-
-    def __init__(self, args: Namespace):
-        self.__args = args
-
+class Train(Cli):
     @staticmethod
     def add_parser(command: str, subparsers: Any):
         parser = subparsers.add_parser(command,
@@ -25,5 +20,4 @@ class Train():
                             help="The label to classify (default: 'kind/bug')")
 
     def run(self):
-        Data().train_release_notes_by_label(self.__args.label,
-                                            self.__args.tune)
+        Data().train_release_notes_by_label(self.args.label, self.args.tune)

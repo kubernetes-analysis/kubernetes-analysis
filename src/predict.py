@@ -1,15 +1,13 @@
 import sys
-from argparse import Namespace
 from typing import Any
 
 from loguru import logger
 
+from .cli import Cli
 from .nlp import Nlp
 
 
-class Predict():
-    __args: Namespace
-
+class Predict(Cli):
     # From: https://github.com/kubernetes/kubernetes/pull/65327
     POSITIVE_TEST_TEXT = """
         Fix concurrent map access panic
@@ -33,9 +31,6 @@ class Predict():
            the EncryptionConfiguration files is loaded. This used to be handled
            by the GRPCService.
     """
-
-    def __init__(self, args: Namespace):
-        self.__args = args
 
     @staticmethod
     def add_parser(command: str, subparsers: Any):
@@ -61,7 +56,7 @@ class Predict():
                             help="Run two simple test cases")
 
     def run(self):
-        if self.__args.test:
+        if self.args.test:
             logger.info("Testing positive text:\n{}",
                         Predict.POSITIVE_TEST_TEXT)
             self.predict_and_evaluate(Predict.POSITIVE_TEST_TEXT)
@@ -72,15 +67,15 @@ class Predict():
                                       expected_positive=False)
 
         else:
-            self.predict_and_evaluate(self.__args.text)
+            self.predict_and_evaluate(self.args.text)
 
     def predict_and_evaluate(self, text: str, expected_positive: bool = True):
         result = Nlp.predict(text)
         logger.info("Got prediction result: {}", result)
 
-        if expected_positive and result < self.__args.treshold:
+        if expected_positive and result < self.args.treshold:
             logger.error("Result is lower than selected treshold {}",
-                         self.__args.treshold)
+                         self.args.treshold)
             sys.exit(1)
 
         logger.info("Matched expected {} prediction result",

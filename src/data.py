@@ -136,6 +136,10 @@ class Data():
             self.__exclude_regex = re.compile(regex)
 
     @staticmethod
+    def dir_path(path: str) -> str:
+        return os.path.join(Data.DATA_DIR, path)
+
+    @staticmethod
     def api_to_tarball():
         logger.info("Compressing API data")
         with tarfile.open(Data.API_DATA_TARBALL, "w:xz") as tar:

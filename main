@@ -4,17 +4,23 @@ from typing import Any
 
 from src.analyze import Analyze
 from src.export import Export
+from src.pipeline import Pipeline
 from src.predict import Predict
+from src.repository import Repository
 from src.train import Train
 
 COMMAND_EXPORT = "export"
 COMMAND_ANALYZE = "analyze"
 COMMAND_TRAIN = "train"
 COMMAND_PREDICT = "predict"
+COMMAND_PIPELINE = "pipeline"
 
 
 def main():
     args = parse_args()
+
+    if args.revision:
+        Repository().checkout(args.revision)
 
     if args.command == COMMAND_EXPORT:
         Export(args).run()
@@ -28,9 +34,17 @@ def main():
     if args.command == COMMAND_PREDICT:
         Predict(args).run()
 
+    if args.command == COMMAND_PIPELINE:
+        Pipeline(args).run()
+
 
 def parse_args() -> Any:
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--revision",
+                        "-r",
+                        type=str,
+                        help="checkout a specific revision")
 
     subparsers = parser.add_subparsers(dest="command")
     subparsers.required = True
@@ -39,6 +53,7 @@ def parse_args() -> Any:
     Analyze.add_parser(COMMAND_ANALYZE, subparsers)
     Train.add_parser(COMMAND_TRAIN, subparsers)
     Predict.add_parser(COMMAND_PREDICT, subparsers)
+    Pipeline.add_parser(COMMAND_PIPELINE, subparsers)
 
     return parser.parse_args()
 

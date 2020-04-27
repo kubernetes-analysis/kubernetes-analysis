@@ -1,18 +1,13 @@
-from argparse import Namespace
 from typing import Any
 
 from loguru import logger
 
+from .cli import Cli
 from .data import Data, Filter
 from .plot import Plot
 
 
-class Analyze():
-    __args: Namespace
-
-    def __init__(self, args: Namespace):
-        self.__args = args
-
+class Analyze(Cli):
     @staticmethod
     def add_parser(command: str, subparsers: Any):
         parser = subparsers.add_parser(command, help="analyze the data")
@@ -112,89 +107,88 @@ class Analyze():
 
         filter_text = "issues and PRs"
         fil = Filter.ALL
-        if self.__args.pull_requests:
+        if self.args.pull_requests:
             logger.info("Filtering pull requests only")
             filter_text = "PRs"
             fil = Filter.PULL_REQUESTS
 
-        if self.__args.issues:
+        if self.args.issues:
             logger.info("Filtering issues only")
             filter_text = "issues"
             fil = Filter.ISSUES
 
         # Parse the data
-        data = Data(parse=self.__args.parse, filter_value=fil)
+        data = Data(parse=self.args.parse, filter_value=fil)
 
         # Created over time
-        if self.__args.created:
+        if self.args.created:
             plot = Plot(data.created_time_series())
             x = plot.time("Created %s over time" % filter_text)
             plot.annotate_chunked(x)
 
         # Closed over time
-        if self.__args.closed:
+        if self.args.closed:
             plot = Plot(data.closed_time_series())
             x = plot.time("Closed %s over time" % filter_text)
             plot.annotate_chunked(x)
 
         # Created vs Closed over time
-        if self.__args.created_vs_closed:
+        if self.args.created_vs_closed:
             plot = Plot(data.created_vs_closed_time_series())
             x = plot.time("Created vs closed %s over time" % filter_text)
             plot.annotate_chunked(x)
 
-        if self.__args.labels_by_name or self.__args.labels_by_group or (
-                self.__args.users_by_created or self.__args.users_by_closed):
-            data.include_regex = self.__args.include
-            data.exclude_regex = self.__args.exclude
+        if self.args.labels_by_name or self.args.labels_by_group or (
+                self.args.users_by_created or self.args.users_by_closed):
+            data.include_regex = self.args.include
+            data.exclude_regex = self.args.exclude
 
         # Label usage by name
-        if self.__args.labels_by_name:
+        if self.args.labels_by_name:
             series = data.label_name_usage_series()
             plot = Plot(series)
             logger.info("Got {} distinct labels and {} results", len(series),
                         sum(series))
             logger.debug("Results:\n{}", series)
             plot.barh("Label usage by name for %s" % filter_text,
-                      self.__args.count)
+                      self.args.count)
 
         # Label usage by name
-        if self.__args.labels_by_group:
+        if self.args.labels_by_group:
             series = data.label_group_usage_series()
             plot = Plot(series)
             logger.info("Got {} distinct label groups and {} results",
                         len(series), sum(series))
             logger.debug("Results:\n{}", series)
             plot.barh("Label usage by label group for %s" % filter_text,
-                      self.__args.count)
+                      self.args.count)
 
         # Created by user
-        if self.__args.users_by_created:
+        if self.args.users_by_created:
             series = data.user_created_series()
             plot = Plot(series)
             logger.info("Got {} distinct users and {} results", len(series),
                         sum(series))
             logger.debug("Results:\n{}", series)
-            plot.barh("Created by user for %s" % filter_text,
-                      self.__args.count)
+            plot.barh("Created by user for %s" % filter_text, self.args.count)
 
         # Closed by user
-        if self.__args.users_by_closed:
+        if self.args.users_by_closed:
             series = data.user_closed_series()
             plot = Plot(series)
             logger.info("Got {} distinct users and {} results", len(series),
                         sum(series))
             logger.debug("Results:\n{}", series)
-            plot.barh("Closed by user for %s" % filter_text, self.__args.count)
+            plot.barh("Closed by user for %s" % filter_text, self.args.count)
 
         # Release notes statistics
-        if self.__args.release_notes_stats:
+        if self.args.release_notes_stats:
             data.release_notes_stats()
             return
 
-        if self.__args.save_svg:
-            Plot.save(self.__args.save_svg)
+        if self.args.save_svg:
+            Plot.save(self.args.save_svg)
             return
 
-        if not self.__args.no_plot_gtk:
+        if not self.args.no_plot_gtk:
             Plot.show()
