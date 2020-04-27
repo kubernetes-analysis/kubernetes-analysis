@@ -32,40 +32,59 @@ class Pipeline(Cli):
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
     def __run(revision: str = "master"):
-        deploy = Pipeline.container("deploy", revision, is_exit_handler=True)
-        with ExitHandler(deploy):
-            deps = Pipeline.container("setup dependencies", revision)
+        update_api = Pipeline.container("update-api-data", revision)
 
-            analyze = Pipeline.container("analyze data", revision)
-            analyze.after(deps)
-
-            train1 = Pipeline.container("training 1", revision)
-            train1.after(analyze)
+        analyze = Pipeline.container("analyze-data", revision)
+        analyze.after(update_api)
 
     @staticmethod
-    def container(name: str,
-                  revision: str,
-                  is_exit_handler=False) -> ContainerOp:
-        operation = ContainerOp(
+    def container(
+            name: str,
+            revision: str,
+    ) -> ContainerOp:
+        ctr = ContainerOp(
             image=Pipeline.IMAGE,
             name=name,
             command=["bash", "-c"],
-            arguments=[
-                "echo Running step $0 for revision $1 && echo $2 > $3",
-                name,
-                revision,
-                Pipeline.markdown_metadata(name),
-                Pipeline.METADATA_FILE_PATH,
-            ],
-            is_exit_handler=is_exit_handler,
+            arguments=("export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN) && "
+                       "echo Running step {name} for revision {revision} && "
+                       "echo {meta} > {meta_path}").format(
+                           name=name,
+                           revision=revision,
+                           meta=Pipeline.markdown_metadata(name),
+                           meta_path=Pipeline.METADATA_FILE_PATH),
             output_artifact_paths=Pipeline.default_artifact_path())
 
-        volume = "volume"
-        operation.add_volume(
-            k8s.V1Volume(name=volume, empty_dir=k8s.V1EmptyDirVolumeSource()))
-        operation.container.add_volume_mount(
-            k8s.V1VolumeMount(name=volume, mount_path=Pipeline.OUT_DIR))
-        return operation
+        # Output Artifacts
+        vol = "output-artifacts"
+        ctr.add_volume(
+            k8s.V1Volume(name=vol, empty_dir=k8s.V1EmptyDirVolumeSource()))
+        ctr.container.add_volume_mount(
+            k8s.V1VolumeMount(name=vol, mount_path=Pipeline.OUT_DIR))
+
+        # GitHub Token
+        gh_token = "github-token"
+        ctr.add_volume(
+            k8s.V1Volume(
+                name=gh_token,
+                secret=k8s.V1SecretVolumeSource(secret_name=gh_token)))
+        ctr.container.add_volume_mount(
+            k8s.V1VolumeMount(name=gh_token,
+                              read_only=True,
+                              mount_path="/secret"))
+
+        # SSH Key
+        ssh_key = "ssh-key"
+        ctr.add_volume(
+            k8s.V1Volume(name=ssh_key,
+                         secret=k8s.V1SecretVolumeSource(default_mode=0o600,
+                                                         secret_name=ssh_key)))
+        ctr.container.add_volume_mount(
+            k8s.V1VolumeMount(name=ssh_key,
+                              read_only=True,
+                              mount_path="/root/.ssh"))
+
+        return ctr
 
     @staticmethod
     def markdown_metadata(result: str) -> str:
