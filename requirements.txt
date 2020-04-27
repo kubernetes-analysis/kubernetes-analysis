@@ -1,8 +1,9 @@
 PyGObject
 PyGithub
+kfp
 loguru
 matplotlib
 numpy
 pycairo
 sklearn
-tensorflow
+tensorflow-gpu
