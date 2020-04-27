@@ -107,6 +107,7 @@ class Nlp():
         else:
             loss = "sparse_categorical_crossentropy"
 
+        logger.info("Compiling model")
         optimizer = tf.keras.optimizers.Adam(lr=learning_rate)
         model.compile(optimizer=optimizer, loss=loss, metrics=["acc"])
 
@@ -117,6 +118,7 @@ class Nlp():
         ]
 
         # Train and validate model
+        logger.info("Starting training")
         x = model.fit(
             x_train,
             self.__train_labels,
@@ -126,7 +128,18 @@ class Nlp():
             verbose=2,  # logs once per epoch
             batch_size=batch_size)
 
+        # Print confusion matric
+        predictions = model.predict_classes(x_val)
+        cm = tf.math.confusion_matrix(predictions=predictions,
+                                      labels=self.__test_labels).numpy()
+        logger.info("Confusion matrix:\n{}", cm)
+
+        cm_norm = np.around(cm.astype("float") / cm.sum(axis=1)[:, np.newaxis],
+                            decimals=3)
+        logger.info("Confusion matrix normalized:\n{}", cm_norm)
+
         # Save the model
+        logger.info("Saving model to file {}", Nlp.MODEL_FILE)
         model.save(Nlp.MODEL_FILE)
 
         logger.info("Validation accuracy: {}, loss: {}",
