@@ -1,9 +1,9 @@
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from kfp.compiler import Compiler
-from kfp.dsl import ContainerOp, ExitHandler, pipeline
+from kfp.dsl import ContainerOp, InputArgumentPath, pipeline
 from kubernetes import client as k8s
 from loguru import logger
 
@@ -13,10 +13,6 @@ from .data import Data
 
 class Pipeline(Cli):
     OUT_DIR = "/out"
-    METADATA_FILE = "mlpipeline-ui-metadata.json"
-    METRICS_FILE = "mlpipeline-metrics.json"
-    METADATA_FILE_PATH = os.path.join(OUT_DIR, METADATA_FILE)
-    METRICS_FILE_PATH = os.path.join(OUT_DIR, METRICS_FILE)
     IMAGE = "quay.io/saschagrunert/kubernetes-analysis:latest"
 
     @staticmethod
@@ -32,28 +28,47 @@ class Pipeline(Cli):
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
     def __run(revision: str = "master"):
-        update_api = Pipeline.container("update-api-data", revision)
+        update_api = Pipeline.container(
+            "update-api-data",
+            ("export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN) && "
+             "echo ./main -r {} --update-api && "
+             "cp data/api.tar.xz /out/api.json").format(revision),
+            file_outputs={"api": "/out/api.json"})
 
-        analyze = Pipeline.container("analyze-data", revision)
+        analyze = Pipeline.container(
+            "consumer",
+            "ls -lah /root/",
+            artifacts=[
+                (update_api.outputs["api"], "/root/data"),
+            ],
+        )
         analyze.after(update_api)
 
+    # yapf: disable
     @staticmethod
     def container(
             name: str,
-            revision: str,
+            arguments: str,
+            file_outputs: Optional[Dict[str, str]] = None,
+            artifacts: Optional[List[Tuple[InputArgumentPath, str]]] = None,
     ) -> ContainerOp:
         ctr = ContainerOp(
             image=Pipeline.IMAGE,
             name=name,
             command=["bash", "-c"],
-            arguments=("export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN) && "
-                       "echo Running step {name} for revision {revision} && "
-                       "echo {meta} > {meta_path}").format(
-                           name=name,
-                           revision=revision,
-                           meta=Pipeline.markdown_metadata(name),
-                           meta_path=Pipeline.METADATA_FILE_PATH),
-            output_artifact_paths=Pipeline.default_artifact_path())
+            output_artifact_paths=Pipeline.default_artifact_path(),
+            file_outputs=file_outputs,
+            artifact_argument_paths=[
+                InputArgumentPath(x[0]) for x in artifacts
+            ] if artifacts else None,
+        )
+
+        # Copy input artifacts correctly
+        input_artifact_copy_args = ""
+        for i, path in enumerate(ctr.input_artifact_paths.values()):
+            input_artifact_copy_args += "cp {} {} && ".format(
+                path, artifacts[i][1])
+        ctr.arguments = input_artifact_copy_args + arguments
 
         # Output Artifacts
         vol = "output-artifacts"
@@ -98,9 +113,13 @@ class Pipeline(Cli):
 
     @staticmethod
     def default_artifact_path() -> Dict[str, str]:
+        metadata = "mlpipeline-ui-metadata.json"
+        metrics = "mlpipeline-metrics.json"
         return {
-            os.path.splitext(Pipeline.METADATA_FILE)[0]:
-            Pipeline.METADATA_FILE_PATH,
-            os.path.splitext(Pipeline.METRICS_FILE)[0]:
-            Pipeline.METRICS_FILE_PATH,
+            os.path.splitext(metadata)[0]: Pipeline.out_dir(metadata),
+            os.path.splitext(metrics)[0]: Pipeline.out_dir(metrics),
         }
+
+    @staticmethod
+    def out_dir(path: str) -> str:
+        return os.path.join(Pipeline.OUT_DIR, path)
