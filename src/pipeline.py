@@ -105,7 +105,7 @@ class Pipeline(Cli):
         # Build Pipeline for verification
         build_pipeline, build_pipeline_outputs = Pipeline.container(
             "build-pipeline",
-            "./main pipeline",
+            main + "pipeline",
             outputs={
                 "pipeline": Pipeline.FILE,
             },
