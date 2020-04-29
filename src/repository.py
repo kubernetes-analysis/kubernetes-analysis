@@ -18,7 +18,9 @@ class Repository():
 
         logger.info("Checking out revision {}", revision)
         try:
+            self.__repo.git.stash()
             self.__repo.git.checkout(revision)
+            self.__repo.git.stash("pop")
         except Exception as e:
             logger.error("Unable to checkout {}: {}", revision, e)
             sys.exit(1)

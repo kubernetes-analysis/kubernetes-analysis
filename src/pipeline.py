@@ -1,5 +1,6 @@
 import json
 import os
+from textwrap import dedent
 from typing import Any, Dict, List, Optional, Tuple
 
 from kfp.compiler import Compiler
@@ -21,37 +22,59 @@ class Pipeline(Cli):
 
     @staticmethod
     def run():
-        archive = Data.dir_path("pipeline.tar.gz")
+        archive = Data.dir_path("pipeline.yaml")
         logger.info("Building pipeline into {}", archive)
         Compiler().compile(pipeline_func=Pipeline.__run, package_path=archive)
 
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
     def __run(revision: str = "master"):
-        update_api = Pipeline.container(
-            "update-api-data",
-            ("export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN) && "
-             "echo ./main -r {} --update-api && "
-             "cp data/api.tar.xz /out/api.json").format(revision),
-            file_outputs={"api": "/out/api.json"})
+        main = "echo ./main -r {} ".format(revision)
 
-        analyze = Pipeline.container(
-            "consumer",
-            "ls -lah /root/",
-            artifacts=[
-                (update_api.outputs["api"], "/root/data"),
+        update_api = Pipeline.container("update-api",
+                                        main + "export --update-api",
+                                        outputs={
+                                            "api": Data.API_DATA_TARBALL,
+                                        })
+
+        update_data = Pipeline.container(
+            "update-data",
+            main + "export --update-data",
+            inputs=[
+                (update_api.outputs["api"], Data.API_DATA_TARBALL),
             ],
+            outputs={
+                "data": Data.TARBALL,
+            },
         )
-        analyze.after(update_api)
+        update_data.after(update_api)
 
     # yapf: disable
     @staticmethod
     def container(
             name: str,
             arguments: str,
-            file_outputs: Optional[Dict[str, str]] = None,
-            artifacts: Optional[List[Tuple[InputArgumentPath, str]]] = None,
+            inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
+            outputs: Optional[Dict[str, str]] = None,
     ) -> ContainerOp:
+
+        # Copy the output artifacts correctly
+        file_outputs = {}
+        output_artifact_copy_args = ""
+        if outputs:
+            for k, v in outputs.items():
+                out = Pipeline.out_dir(v)
+                file_outputs[k] = out
+                output_artifact_copy_args += dedent("""
+                    mkdir -p {d}
+                    cp {fr} {to}
+                """.format(
+                    d=os.path.dirname(out),
+                    fr=v,
+                    to=out,
+                ))
+
+        # Create the container
         ctr = ContainerOp(
             image=Pipeline.IMAGE,
             name=name,
@@ -59,16 +82,23 @@ class Pipeline(Cli):
             output_artifact_paths=Pipeline.default_artifact_path(),
             file_outputs=file_outputs,
             artifact_argument_paths=[
-                InputArgumentPath(x[0]) for x in artifacts
-            ] if artifacts else None,
+                InputArgumentPath(x[0]) for x in inputs
+            ] if inputs else None,
         )
+
+        # Set the GitHub token
+        token_args = "export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)\n"
 
         # Copy input artifacts correctly
         input_artifact_copy_args = ""
         for i, path in enumerate(ctr.input_artifact_paths.values()):
-            input_artifact_copy_args += "cp {} {} && ".format(
-                path, artifacts[i][1])
-        ctr.arguments = input_artifact_copy_args + arguments
+            input_artifact_copy_args += dedent("""
+                cp {fr} {to}
+            """.format(fr=path, to=inputs[i][1]))
+
+        # Assemble the command
+        ctr.arguments = token_args + input_artifact_copy_args + \
+            arguments + "\n" + output_artifact_copy_args
 
         # Output Artifacts
         vol = "output-artifacts"

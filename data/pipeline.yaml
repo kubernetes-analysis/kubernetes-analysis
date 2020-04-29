@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: kubernetes-analysis-
+  annotations: {pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "master",
+      "name": "revision", "optional": true, "type": "String"}], "name": "Kubernetes
+      Analysis"}'}
+spec:
+  entrypoint: kubernetes-analysis
+  templates:
+  - name: kubernetes-analysis
+    inputs:
+      parameters:
+      - {name: revision}
+    dag:
+      tasks:
+      - name: update-api
+        template: update-api
+        arguments:
+          parameters:
+          - {name: revision, value: '{{inputs.parameters.revision}}'}
+      - name: update-data
+        template: update-data
+        dependencies: [update-api]
+        arguments:
+          parameters:
+          - {name: revision, value: '{{inputs.parameters.revision}}'}
+          artifacts:
+          - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
+  - name: update-api
+    container:
+      args:
+      - |
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        echo ./main -r {{inputs.parameters.revision}} export --update-api
+
+        mkdir -p /out/data
+        cp data/api.tar.xz /out/data/api.tar.xz
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      parameters:
+      - {name: revision}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: update-api-api, path: /out/data/api.tar.xz}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: update-data
+    container:
+      args:
+      - |
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+
+        cp /tmp/inputs/input-0/data data/api.tar.xz
+        echo ./main -r {{inputs.parameters.revision}} export --update-data
+
+        mkdir -p /out/data
+        cp data/data.tar.xz /out/data/data.tar.xz
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      parameters:
+      - {name: revision}
+      artifacts:
+      - {name: update-api-api, path: /tmp/inputs/input-0/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: update-data-data, path: /out/data/data.tar.xz}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  arguments:
+    parameters:
+    - {name: revision, value: master}
+  serviceAccountName: pipeline-runner

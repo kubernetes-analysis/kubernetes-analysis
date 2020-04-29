@@ -6,7 +6,7 @@ pipeline:
 
 .PHONY: pipeline-upload
 pipeline-upload: pipeline
-	kfp pipeline upload -p $(PIPELINE) data/pipeline.tar.gz || true
+	kfp pipeline upload -p $(PIPELINE) data/pipeline.yaml || true
 
 .PHONY: pipeline-run
 pipeline-run:
