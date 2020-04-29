@@ -33,14 +33,18 @@ class Pipeline(Cli):
     @pipeline(name="Kubernetes Analysis")
     def __run(revision: str = "master"):
         # Checkout the source code
-        checkout, _ = Pipeline.container(
-            "checkout",
-            dedent("""
+        checkout, checkout_outputs = Pipeline.container("checkout",
+                                                        dedent("""
                 git clone git@github.com:saschagrunert/{repo}
                 pushd {repo}
                 git checkout {rev}
                 popd
-            """.format(repo=Pipeline.REPO, rev=revision)))
+            """.format(repo=Pipeline.REPO, rev=revision)),
+                                                        outputs={
+                                                            "repo":
+                                                            Pipeline.REPO,
+                                                        })
+        repo = checkout_outputs["repo"]
 
         main = "echo ./main "
 
@@ -48,6 +52,7 @@ class Pipeline(Cli):
         update_api, update_api_outputs = Pipeline.container(
             "update-api",
             main + "export --update-api",
+            inputs=[repo],
             outputs={
                 "api": Data.API_DATA_TARBALL,
             })

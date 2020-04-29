@@ -39,7 +39,7 @@ spec:
   - name: checkout
     container:
       args:
-      - |+
+      - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
 
@@ -48,6 +48,8 @@ spec:
         git checkout {{inputs.parameters.revision}}
         popd
 
+        mkdir -p /out
+        cp -r kubernetes-analysis /out/kubernetes-analysis
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
       imagePullPolicy: Always
@@ -62,6 +64,7 @@ spec:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: checkout-repo, path: /out/kubernetes-analysis}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -152,6 +155,9 @@ spec:
       - name: update-api
         template: update-api
         dependencies: [checkout]
+        arguments:
+          artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
       - name: update-assets
         template: update-assets
         dependencies: [update-data]
@@ -236,6 +242,7 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
         echo ./main export --update-api
         mkdir -p /out/data
         cp -r data/api.tar.xz /out/data/api.tar.xz
@@ -246,6 +253,9 @@ spec:
       - {mountPath: /out, name: output-artifacts}
       - {mountPath: /secret, name: github-token, readOnly: true}
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      artifacts:
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
