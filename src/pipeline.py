@@ -10,11 +10,14 @@ from loguru import logger
 
 from .cli import Cli
 from .data import Data
+from .nlp import Nlp
 
 
 class Pipeline(Cli):
     OUT_DIR = "/out"
-    IMAGE = "quay.io/saschagrunert/kubernetes-analysis:latest"
+    REPO = "kubernetes-analysis"
+    IMAGE = "quay.io/saschagrunert/{}:latest".format(REPO)
+    FILE = Data.dir_path("pipeline.yaml")
 
     @staticmethod
     def add_parser(command: str, subparsers: Any):
@@ -22,32 +25,99 @@ class Pipeline(Cli):
 
     @staticmethod
     def run():
-        archive = Data.dir_path("pipeline.yaml")
-        logger.info("Building pipeline into {}", archive)
-        Compiler().compile(pipeline_func=Pipeline.__run, package_path=archive)
+        logger.info("Building pipeline into {}", Pipeline.FILE)
+        Compiler().compile(pipeline_func=Pipeline.__run,
+                           package_path=Pipeline.FILE)
 
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
     def __run(revision: str = "master"):
-        main = "echo ./main -r {} ".format(revision)
+        # Checkout the source code
+        checkout, _ = Pipeline.container(
+            "checkout",
+            dedent("""
+                git clone git@github.com:saschagrunert/{repo}
+                pushd {repo}
+                git checkout {rev}
+                popd
+            """.format(repo=Pipeline.REPO, rev=revision)))
 
-        update_api = Pipeline.container("update-api",
-                                        main + "export --update-api",
-                                        outputs={
-                                            "api": Data.API_DATA_TARBALL,
-                                        })
+        main = "echo ./main "
 
-        update_data = Pipeline.container(
+        # Udpate the API data
+        update_api, update_api_outputs = Pipeline.container(
+            "update-api",
+            main + "export --update-api",
+            outputs={
+                "api": Data.API_DATA_TARBALL,
+            })
+        api = update_api_outputs["api"]
+        update_api.after(checkout)
+
+        # Udpate the training data from the API
+        update_data, update_data_outputs = Pipeline.container(
             "update-data",
             main + "export --update-data",
-            inputs=[
-                (update_api.outputs["api"], Data.API_DATA_TARBALL),
-            ],
+            inputs=[api],
             outputs={
                 "data": Data.TARBALL,
             },
         )
         update_data.after(update_api)
+        data = update_data_outputs["data"]
+
+        # Udpate the analysis assets
+        update_assets, update_assets_outputs = Pipeline.container(
+            "update-assets",
+            "echo make assets",
+            inputs=[data],
+            outputs={"assets": "assets"})
+        update_assets.after(update_data)
+        assets = update_assets_outputs["assets"]
+
+        # Train the model
+        train, train_outputs = Pipeline.container(
+            "train",
+            main + "train",
+            inputs=[data],
+            outputs={
+                "vectorizer": Nlp.VECTORIZER_FILE,
+                "model": Nlp.MODEL_FILE,
+            },
+        )
+        train.after(update_data)
+        vectorizer = train_outputs["vectorizer"]
+        model = train_outputs["model"]
+
+        # Predict and test the model
+        predict, _ = Pipeline.container(
+            "predict",
+            main + "predict --test",
+            inputs=[vectorizer, model],
+        )
+        predict.after(train)
+
+        # Build Pipeline for verification
+        build_pipeline, build_pipeline_outputs = Pipeline.container(
+            "build-pipeline",
+            "./main pipeline",
+            outputs={
+                "pipeline": Pipeline.FILE,
+            },
+        )
+        build_pipeline.after(predict)
+        pipe = build_pipeline_outputs["pipeline"]
+
+        # Commit changes
+        commit, _ = Pipeline.container(
+            "commit-changes",
+            dedent("""
+              git add .
+              git commit -m "Update data" || true
+            """),
+            inputs=[api, data, assets, vectorizer, model, pipe],
+        )
+        commit.after(build_pipeline)
 
     # yapf: disable
     @staticmethod
@@ -56,7 +126,11 @@ class Pipeline(Cli):
             arguments: str,
             inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
             outputs: Optional[Dict[str, str]] = None,
-    ) -> ContainerOp:
+    ) -> Tuple[ContainerOp, Dict[str, Tuple[InputArgumentPath, str]]]:
+        # Change into the repository dir if existing
+        prepare_args = dedent("""
+            set -euo pipefail
+        """.format(repo=Pipeline.REPO)).lstrip()
 
         # Copy the output artifacts correctly
         file_outputs = {}
@@ -67,12 +141,12 @@ class Pipeline(Cli):
                 file_outputs[k] = out
                 output_artifact_copy_args += dedent("""
                     mkdir -p {d}
-                    cp {fr} {to}
+                    cp -r {fr} {to}
                 """.format(
                     d=os.path.dirname(out),
                     fr=v,
                     to=out,
-                ))
+                )).lstrip()
 
         # Create the container
         ctr = ContainerOp(
@@ -85,6 +159,7 @@ class Pipeline(Cli):
                 InputArgumentPath(x[0]) for x in inputs
             ] if inputs else None,
         )
+        ctr.container.set_image_pull_policy("Always")
 
         # Set the GitHub token
         token_args = "export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)\n"
@@ -93,12 +168,14 @@ class Pipeline(Cli):
         input_artifact_copy_args = ""
         for i, path in enumerate(ctr.input_artifact_paths.values()):
             input_artifact_copy_args += dedent("""
-                cp {fr} {to}
-            """.format(fr=path, to=inputs[i][1]))
+                cp -r {fr} {to}
+            """.format(fr=path, to=inputs[i][1])).lstrip()
 
         # Assemble the command
-        ctr.arguments = token_args + input_artifact_copy_args + \
-            arguments + "\n" + output_artifact_copy_args
+        ctr.arguments = prepare_args + \
+            token_args + \
+            input_artifact_copy_args + arguments + "\n" + \
+            output_artifact_copy_args
 
         # Output Artifacts
         vol = "output-artifacts"
@@ -129,7 +206,12 @@ class Pipeline(Cli):
                               read_only=True,
                               mount_path="/root/.ssh"))
 
-        return ctr
+        # Assemble the inputs for the next stage
+        consumable_inputs = {}
+        for k, v in file_outputs.items():
+            consumable_inputs[k] = (ctr.outputs[k], outputs[k])
+
+        return ctr, consumable_inputs
 
     @staticmethod
     def markdown_metadata(result: str) -> str:

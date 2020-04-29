@@ -17,5 +17,4 @@ COPY requirements.txt /
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-RUN git clone https://github.com/saschagrunert/kubernetes-analysis
-WORKDIR $HOME/kubernetes-analysis
+WORKDIR $HOME

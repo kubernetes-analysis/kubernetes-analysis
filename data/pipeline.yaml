@@ -8,36 +8,49 @@ metadata:
 spec:
   entrypoint: kubernetes-analysis
   templates:
-  - name: kubernetes-analysis
-    inputs:
-      parameters:
-      - {name: revision}
-    dag:
-      tasks:
-      - name: update-api
-        template: update-api
-        arguments:
-          parameters:
-          - {name: revision, value: '{{inputs.parameters.revision}}'}
-      - name: update-data
-        template: update-data
-        dependencies: [update-api]
-        arguments:
-          parameters:
-          - {name: revision, value: '{{inputs.parameters.revision}}'}
-          artifacts:
-          - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
-  - name: update-api
+  - name: build-pipeline
     container:
       args:
       - |
+        set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        echo ./main -r {{inputs.parameters.revision}} export --update-api
-
+        ./main pipeline
         mkdir -p /out/data
-        cp data/api.tar.xz /out/data/api.tar.xz
+        cp -r data/pipeline.yaml /out/data/pipeline.yaml
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: build-pipeline-pipeline, path: /out/data/pipeline.yaml}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: checkout
+    container:
+      args:
+      - |+
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+
+        git clone git@github.com:saschagrunert/kubernetes-analysis
+        pushd kubernetes-analysis
+        git checkout {{inputs.parameters.revision}}
+        popd
+
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
       volumeMounts:
       - {mountPath: /out, name: output-artifacts}
       - {mountPath: /secret, name: github-token, readOnly: true}
@@ -45,6 +58,194 @@ spec:
     inputs:
       parameters:
       - {name: revision}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: commit-changes
+    container:
+      args:
+      - |+
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        cp -r /tmp/inputs/input-0/data data/api.tar.xz
+        cp -r /tmp/inputs/input-1/data data/data.tar.xz
+        cp -r /tmp/inputs/input-2/data assets
+        cp -r /tmp/inputs/input-3/data data/vectorizer.pickle
+        cp -r /tmp/inputs/input-4/data data/model.h5
+        cp -r /tmp/inputs/input-5/data data/pipeline.yaml
+
+        git add .
+        git commit -m "Update data" || true
+
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      artifacts:
+      - {name: update-api-api, path: /tmp/inputs/input-0/data}
+      - {name: update-data-data, path: /tmp/inputs/input-1/data}
+      - {name: update-assets-assets, path: /tmp/inputs/input-2/data}
+      - {name: train-vectorizer, path: /tmp/inputs/input-3/data}
+      - {name: train-model, path: /tmp/inputs/input-4/data}
+      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-5/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: kubernetes-analysis
+    inputs:
+      parameters:
+      - {name: revision}
+    dag:
+      tasks:
+      - name: build-pipeline
+        template: build-pipeline
+        dependencies: [predict]
+      - name: checkout
+        template: checkout
+        arguments:
+          parameters:
+          - {name: revision, value: '{{inputs.parameters.revision}}'}
+      - name: commit-changes
+        template: commit-changes
+        dependencies: [build-pipeline, train, update-api, update-assets, update-data]
+        arguments:
+          artifacts:
+          - {name: build-pipeline-pipeline, from: '{{tasks.build-pipeline.outputs.artifacts.build-pipeline-pipeline}}'}
+          - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
+          - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
+          - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
+          - {name: update-assets-assets, from: '{{tasks.update-assets.outputs.artifacts.update-assets-assets}}'}
+          - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
+      - name: predict
+        template: predict
+        dependencies: [train]
+        arguments:
+          artifacts:
+          - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
+          - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
+      - name: train
+        template: train
+        dependencies: [update-data]
+        arguments:
+          artifacts:
+          - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
+      - name: update-api
+        template: update-api
+        dependencies: [checkout]
+      - name: update-assets
+        template: update-assets
+        dependencies: [update-data]
+        arguments:
+          artifacts:
+          - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
+      - name: update-data
+        template: update-data
+        dependencies: [update-api]
+        arguments:
+          artifacts:
+          - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
+  - name: predict
+    container:
+      args:
+      - |
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        cp -r /tmp/inputs/input-0/data data/vectorizer.pickle
+        cp -r /tmp/inputs/input-1/data data/model.h5
+        echo ./main predict --test
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      artifacts:
+      - {name: train-vectorizer, path: /tmp/inputs/input-0/data}
+      - {name: train-model, path: /tmp/inputs/input-1/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: train
+    container:
+      args:
+      - |
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        cp -r /tmp/inputs/input-0/data data/data.tar.xz
+        echo ./main train
+        mkdir -p /out/data
+        cp -r data/vectorizer.pickle /out/data/vectorizer.pickle
+        mkdir -p /out/data
+        cp -r data/model.h5 /out/data/model.h5
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      artifacts:
+      - {name: update-data-data, path: /tmp/inputs/input-0/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: train-model, path: /out/data/model.h5}
+      - {name: train-vectorizer, path: /out/data/vectorizer.pickle}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: update-api
+    container:
+      args:
+      - |
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        echo ./main export --update-api
+        mkdir -p /out/data
+        cp -r data/api.tar.xz /out/data/api.tar.xz
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -57,26 +258,56 @@ spec:
       name: output-artifacts
     - name: ssh-key
       secret: {defaultMode: 384, secretName: ssh-key}
-  - name: update-data
+  - name: update-assets
     container:
       args:
       - |
+        set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-
-        cp /tmp/inputs/input-0/data data/api.tar.xz
-        echo ./main -r {{inputs.parameters.revision}} export --update-data
-
-        mkdir -p /out/data
-        cp data/data.tar.xz /out/data/data.tar.xz
+        cp -r /tmp/inputs/input-0/data data/data.tar.xz
+        echo make assets
+        mkdir -p /out
+        cp -r assets /out/assets
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
       volumeMounts:
       - {mountPath: /out, name: output-artifacts}
       - {mountPath: /secret, name: github-token, readOnly: true}
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
-      parameters:
-      - {name: revision}
+      artifacts:
+      - {name: update-data-data, path: /tmp/inputs/input-0/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: update-assets-assets, path: /out/assets}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
+  - name: update-data
+    container:
+      args:
+      - |
+        set -euo pipefail
+        export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
+        cp -r /tmp/inputs/input-0/data data/api.tar.xz
+        echo ./main export --update-data
+        mkdir -p /out/data
+        cp -r data/data.tar.xz /out/data/data.tar.xz
+      command: [bash, -c]
+      image: quay.io/saschagrunert/kubernetes-analysis:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secret, name: github-token, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
       artifacts:
       - {name: update-api-api, path: /tmp/inputs/input-0/data}
     outputs:
