@@ -174,7 +174,9 @@ class Pipeline(Cli):
         # Assemble the command
         ctr.arguments = prepare_args + \
             token_args + \
-            input_artifact_copy_args + arguments + "\n" + \
+            input_artifact_copy_args + \
+            arguments + \
+            "\n" + \
             output_artifact_copy_args
 
         # Output Artifacts
