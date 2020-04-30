@@ -14,7 +14,9 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        echo ./main pipeline
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        ./main pipeline
         mkdir -p /out/data
         cp -r data/pipeline.yaml /out/data/pipeline.yaml
       command: [bash, -c]
@@ -24,6 +26,9 @@ spec:
       - {mountPath: /out, name: output-artifacts}
       - {mountPath: /secret, name: github-token, readOnly: true}
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+    inputs:
+      artifacts:
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -78,15 +83,20 @@ spec:
       - |+
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        cp -r /tmp/inputs/input-0/data data/api.tar.xz
-        cp -r /tmp/inputs/input-1/data data/data.tar.xz
-        cp -r /tmp/inputs/input-2/data assets
-        cp -r /tmp/inputs/input-3/data data/vectorizer.pickle
-        cp -r /tmp/inputs/input-4/data data/model.h5
-        cp -r /tmp/inputs/input-5/data data/pipeline.yaml
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        cp -r /tmp/inputs/input-1/data data/api.tar.xz
+        cp -r /tmp/inputs/input-2/data data/data.tar.xz
+        cp -r /tmp/inputs/input-3/data assets
+        cp -r /tmp/inputs/input-4/data data/vectorizer.pickle
+        cp -r /tmp/inputs/input-5/data data/model.h5
+        cp -r /tmp/inputs/input-6/data data/pipeline.yaml
 
         git add .
         git commit -m "Update data" || true
+        if [[ {{inputs.parameters.revision}} == master ]]; then
+          git push --dry-run
+        fi
 
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
@@ -96,13 +106,16 @@ spec:
       - {mountPath: /secret, name: github-token, readOnly: true}
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
+      parameters:
+      - {name: revision}
       artifacts:
-      - {name: update-api-api, path: /tmp/inputs/input-0/data}
-      - {name: update-data-data, path: /tmp/inputs/input-1/data}
-      - {name: update-assets-assets, path: /tmp/inputs/input-2/data}
-      - {name: train-vectorizer, path: /tmp/inputs/input-3/data}
-      - {name: train-model, path: /tmp/inputs/input-4/data}
-      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-5/data}
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
+      - {name: update-api-api, path: /tmp/inputs/input-1/data}
+      - {name: update-data-data, path: /tmp/inputs/input-2/data}
+      - {name: update-assets-assets, path: /tmp/inputs/input-3/data}
+      - {name: train-vectorizer, path: /tmp/inputs/input-4/data}
+      - {name: train-model, path: /tmp/inputs/input-5/data}
+      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-6/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -122,7 +135,10 @@ spec:
       tasks:
       - name: build-pipeline
         template: build-pipeline
-        dependencies: [predict]
+        dependencies: [checkout, predict]
+        arguments:
+          artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
       - name: checkout
         template: checkout
         arguments:
@@ -130,10 +146,14 @@ spec:
           - {name: revision, value: '{{inputs.parameters.revision}}'}
       - name: commit-changes
         template: commit-changes
-        dependencies: [build-pipeline, train, update-api, update-assets, update-data]
+        dependencies: [build-pipeline, checkout, train, update-api, update-assets,
+          update-data]
         arguments:
+          parameters:
+          - {name: revision, value: '{{inputs.parameters.revision}}'}
           artifacts:
           - {name: build-pipeline-pipeline, from: '{{tasks.build-pipeline.outputs.artifacts.build-pipeline-pipeline}}'}
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
           - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
@@ -141,16 +161,18 @@ spec:
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
       - name: predict
         template: predict
-        dependencies: [train]
+        dependencies: [checkout, train]
         arguments:
           artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
       - name: train
         template: train
-        dependencies: [update-data]
+        dependencies: [checkout, update-data]
         arguments:
           artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
       - name: update-api
         template: update-api
@@ -160,15 +182,17 @@ spec:
           - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
       - name: update-assets
         template: update-assets
-        dependencies: [update-data]
+        dependencies: [checkout, update-data]
         arguments:
           artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
       - name: update-data
         template: update-data
-        dependencies: [update-api]
+        dependencies: [checkout, update-api]
         arguments:
           artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
   - name: predict
     container:
@@ -176,9 +200,11 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        cp -r /tmp/inputs/input-0/data data/vectorizer.pickle
-        cp -r /tmp/inputs/input-1/data data/model.h5
-        echo ./main predict --test
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        cp -r /tmp/inputs/input-1/data data/vectorizer.pickle
+        cp -r /tmp/inputs/input-2/data data/model.h5
+        /main predict --test
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
       imagePullPolicy: Always
@@ -188,8 +214,9 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       artifacts:
-      - {name: train-vectorizer, path: /tmp/inputs/input-0/data}
-      - {name: train-model, path: /tmp/inputs/input-1/data}
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
+      - {name: train-vectorizer, path: /tmp/inputs/input-1/data}
+      - {name: train-model, path: /tmp/inputs/input-2/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -207,8 +234,10 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        cp -r /tmp/inputs/input-0/data data/data.tar.xz
-        echo ./main train
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        cp -r /tmp/inputs/input-1/data data/data.tar.xz
+        ./main train
         mkdir -p /out/data
         cp -r data/vectorizer.pickle /out/data/vectorizer.pickle
         mkdir -p /out/data
@@ -222,7 +251,8 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       artifacts:
-      - {name: update-data-data, path: /tmp/inputs/input-0/data}
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
+      - {name: update-data-data, path: /tmp/inputs/input-1/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -243,7 +273,8 @@ spec:
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
-        echo ./main export --update-api
+        cd kubernetes-analysis
+        ./main export --update-api
         mkdir -p /out/data
         cp -r data/api.tar.xz /out/data/api.tar.xz
       command: [bash, -c]
@@ -274,7 +305,9 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        cp -r /tmp/inputs/input-0/data data/data.tar.xz
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        cp -r /tmp/inputs/input-1/data data/data.tar.xz
         echo make assets
         mkdir -p /out
         cp -r assets /out/assets
@@ -287,7 +320,8 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       artifacts:
-      - {name: update-data-data, path: /tmp/inputs/input-0/data}
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
+      - {name: update-data-data, path: /tmp/inputs/input-1/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -306,8 +340,10 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        cp -r /tmp/inputs/input-0/data data/api.tar.xz
-        echo ./main export --update-data
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+        cp -r /tmp/inputs/input-1/data data/api.tar.xz
+        ./main export --update-data
         mkdir -p /out/data
         cp -r data/data.tar.xz /out/data/data.tar.xz
       command: [bash, -c]
@@ -319,7 +355,8 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       artifacts:
-      - {name: update-api-api, path: /tmp/inputs/input-0/data}
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
+      - {name: update-api-api, path: /tmp/inputs/input-1/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}

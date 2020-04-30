@@ -46,12 +46,10 @@ class Pipeline(Cli):
                                                         })
         repo = checkout_outputs["repo"]
 
-        main = "echo ./main "
-
         # Udpate the API data
         update_api, update_api_outputs = Pipeline.container(
             "update-api",
-            main + "export --update-api",
+            "./main export --update-api",
             inputs=[repo],
             outputs={
                 "api": Data.API_DATA_TARBALL,
@@ -62,8 +60,8 @@ class Pipeline(Cli):
         # Udpate the training data from the API
         update_data, update_data_outputs = Pipeline.container(
             "update-data",
-            main + "export --update-data",
-            inputs=[api],
+            "./main export --update-data",
+            inputs=[repo, api],
             outputs={
                 "data": Data.TARBALL,
             },
@@ -75,7 +73,7 @@ class Pipeline(Cli):
         update_assets, update_assets_outputs = Pipeline.container(
             "update-assets",
             "echo make assets",
-            inputs=[data],
+            inputs=[repo, data],
             outputs={"assets": "assets"})
         update_assets.after(update_data)
         assets = update_assets_outputs["assets"]
@@ -83,8 +81,8 @@ class Pipeline(Cli):
         # Train the model
         train, train_outputs = Pipeline.container(
             "train",
-            main + "train",
-            inputs=[data],
+            "./main train",
+            inputs=[repo, data],
             outputs={
                 "vectorizer": Nlp.VECTORIZER_FILE,
                 "model": Nlp.MODEL_FILE,
@@ -97,15 +95,16 @@ class Pipeline(Cli):
         # Predict and test the model
         predict, _ = Pipeline.container(
             "predict",
-            main + "predict --test",
-            inputs=[vectorizer, model],
+            "/main predict --test",
+            inputs=[repo, vectorizer, model],
         )
         predict.after(train)
 
         # Build Pipeline for verification
         build_pipeline, build_pipeline_outputs = Pipeline.container(
             "build-pipeline",
-            main + "pipeline",
+            "./main pipeline",
+            inputs=[repo],
             outputs={
                 "pipeline": Pipeline.FILE,
             },
@@ -119,8 +118,11 @@ class Pipeline(Cli):
             dedent("""
               git add .
               git commit -m "Update data" || true
-            """),
-            inputs=[api, data, assets, vectorizer, model, pipe],
+              if [[ {} == master ]]; then
+                git push --dry-run
+              fi
+            """.format(revision)),
+            inputs=[repo, api, data, assets, vectorizer, model, pipe],
         )
         commit.after(build_pipeline)
 
@@ -132,10 +134,8 @@ class Pipeline(Cli):
             inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
             outputs: Optional[Dict[str, str]] = None,
     ) -> Tuple[ContainerOp, Dict[str, Tuple[InputArgumentPath, str]]]:
-        # Change into the repository dir if existing
-        prepare_args = dedent("""
-            set -euo pipefail
-        """.format(repo=Pipeline.REPO)).lstrip()
+        # Set the correct shell parameters
+        prepare_args = "set -euo pipefail\n"
 
         # Copy the output artifacts correctly
         file_outputs = {}
@@ -172,9 +172,13 @@ class Pipeline(Cli):
         # Copy input artifacts correctly
         input_artifact_copy_args = ""
         for i, path in enumerate(ctr.input_artifact_paths.values()):
-            input_artifact_copy_args += dedent("""
-                cp -r {fr} {to}
-            """.format(fr=path, to=inputs[i][1])).lstrip()
+            target_location = inputs[i][1]
+            input_artifact_copy_args += "cp -r {fr} {to}\n".format(
+                fr=path, to=target_location)
+
+            # Change to the repository path if available
+            if target_location == Pipeline.REPO:
+                input_artifact_copy_args += "cd {}\n".format(Pipeline.REPO)
 
         # Assemble the command
         ctr.arguments = prepare_args + \
