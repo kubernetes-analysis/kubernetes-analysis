@@ -80,6 +80,9 @@ class Nlp():
         logger.info("Tuning results: {}", params)
 
     def __train(self,
+                ngram_range: Tuple[int, int] = (1, 2),
+                min_df: int = 1,
+                max_df: float = 1.0,
                 learning_rate: float = 1e-3,
                 epochs: int = 1000,
                 batch_size: int = 128,
@@ -103,7 +106,8 @@ class Nlp():
                     unexpected_labels=unexpected_labels))
 
         x_train, x_val = Nlp.__vectorize(self.__train_texts, self.__test_texts,
-                                         self.__train_labels)
+                                         self.__train_labels, ngram_range,
+                                         min_df, max_df)
 
         # Create model instance.
         model = Nlp.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
@@ -177,23 +181,20 @@ class Nlp():
         return num_classes
 
     @staticmethod
-    def __vectorize(train: List[str], test: List[str],
-                    labels: List[str]) -> Tuple[Any, Any]:
+    def __vectorize(
+            train: List[str],
+            test: List[str],
+            labels: List[str],
+            ngram_range: Tuple[int, int],
+            min_df: int,
+            max_df: float,
+    ) -> Tuple[Any, Any]:
         vectorizer = TfidfVectorizer(
-            # Split text into word tokens.
             analyzer="word",
-
-            # Replace on decoding error
             decode_error="replace",
-
-            # Use 1-grams + 2-grams
-            ngram_range=(1, 2),
-
-            # Minimum document/corpus frequency below which a token will be
-            # discarded
-            min_df=1,  # maybe use 2
-
-            # Remove accents and perform other character normalization
+            ngram_range=ngram_range,
+            min_df=min_df,
+            max_df=max_df,
             strip_accents="unicode",
         )
 
