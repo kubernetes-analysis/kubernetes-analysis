@@ -9,7 +9,7 @@ RUN apt-get update \
         libcairo2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git config --global user.name "Kubeflow" && \
+RUN git config --global user.name Kubeflow && \
     git config --global user.email k8s@saschagrunert.de
 
 COPY requirements.txt /
