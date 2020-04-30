@@ -7,12 +7,15 @@ import numpy as np
 import tensorflow as tf
 from loguru import logger
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import SelectKBest, f_classif
 
 
 class Nlp():
     DATA_DIR = "data"
     MODEL_FILE = os.path.join(DATA_DIR, "model.h5")
     VECTORIZER_FILE = os.path.join(DATA_DIR, "vectorizer.pickle")
+    SELECTOR_FILE = os.path.join(DATA_DIR, "selector.pickle")
+    TOP_FEATURES = 30000
 
     __train_texts: List[str]
     __train_labels: Any
@@ -32,12 +35,17 @@ class Nlp():
         # Load the vectorizer
         vectorizer = pickle.load(open(Nlp.VECTORIZER_FILE, "rb"))
 
+        # Load the selector
+        selector = pickle.load(open(Nlp.SELECTOR_FILE, "rb"))
+
         # Prepare the input data
-        data = vectorizer.transform([text]).toarray()
+        vectorized = vectorizer.transform([text])
+        selected = selector.transform(vectorized).astype("float32")
 
         # Load the model and predict
         model = tf.keras.models.load_model(Nlp.MODEL_FILE)
-        result = model.predict(data)
+
+        result = model.predict(selected.toarray())
 
         return result[0][0].item()
 
@@ -94,7 +102,8 @@ class Nlp():
                 "as training labels.".format(
                     unexpected_labels=unexpected_labels))
 
-        x_train, x_val = Nlp.__vectorize(self.__train_texts, self.__test_texts)
+        x_train, x_val = Nlp.__vectorize(self.__train_texts, self.__test_texts,
+                                         self.__train_labels)
 
         # Create model instance.
         model = Nlp.__mlp_model(layers, units, dropout_rate, x_train.shape[1:],
@@ -168,7 +177,8 @@ class Nlp():
         return num_classes
 
     @staticmethod
-    def __vectorize(train: List[str], test: List[str]) -> Tuple[Any, Any]:
+    def __vectorize(train: List[str], test: List[str],
+                    labels: List[str]) -> Tuple[Any, Any]:
         vectorizer = TfidfVectorizer(
             # Split text into word tokens.
             analyzer="word",
@@ -200,6 +210,17 @@ class Nlp():
 
         # Save the vectorizer
         pickle.dump(vectorizer, open(Nlp.VECTORIZER_FILE, "wb"))
+
+        # Select top "k" of the vectorized features
+        selector = SelectKBest(f_classif,
+                               k=min(Nlp.TOP_FEATURES, x_train.shape[1]))
+        selector.fit(x_train, labels)
+
+        x_train = selector.transform(x_train).astype("float32")
+        x_val = selector.transform(x_val).astype("float32")
+
+        # Save the selector
+        pickle.dump(selector, open(Nlp.SELECTOR_FILE, "wb"))
 
         return x_train.toarray(), x_val.toarray()
 
