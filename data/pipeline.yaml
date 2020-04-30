@@ -14,7 +14,7 @@ spec:
       - |
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
-        ./main pipeline
+        echo ./main pipeline
         mkdir -p /out/data
         cp -r data/pipeline.yaml /out/data/pipeline.yaml
       command: [bash, -c]
