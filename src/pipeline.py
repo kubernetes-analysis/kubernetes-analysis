@@ -88,6 +88,7 @@ class Pipeline(Cli):
                 "model": Nlp.MODEL_FILE,
             },
         )
+        train.container.set_gpu_limit("2")
         train.after(update_data)
         vectorizer = train_outputs["vectorizer"]
         model = train_outputs["model"]
