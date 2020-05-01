@@ -1,9 +1,13 @@
 FROM tensorflow/tensorflow:2.1.0-gpu-py3
 
-RUN RELEASE=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt) && \
-    curl -L https://storage.googleapis.com/kubernetes-release/release/$RELEASE/bin/linux/amd64/kubectl -o /usr/bin/kubectl && \
+RUN VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt) && \
+    curl -sfL https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl -o /usr/bin/kubectl && \
     chmod +x /usr/bin/kubectl && \
     kubectl version --client --short
+
+RUN VERSION=v2.8.0-rc3 && \
+    curl -sfL https://github.com/argoproj/argo/releases/download/$VERSION/argo-linux-amd64 -o /usr/bin/argo && \
+    chmod +x /usr/bin/argo
 
 RUN apt-get update \
     && apt-get install -y \
