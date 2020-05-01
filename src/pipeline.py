@@ -85,19 +85,21 @@ class Pipeline(Cli):
             inputs=[repo, data],
             outputs={
                 "vectorizer": Nlp.VECTORIZER_FILE,
+                "selector": Nlp.SELECTOR_FILE,
                 "model": Nlp.MODEL_FILE,
             },
         )
         train.container.set_gpu_limit("2")
         train.after(update_data)
         vectorizer = train_outputs["vectorizer"]
+        selector = train_outputs["selector"]
         model = train_outputs["model"]
 
         # Predict and test the model
         predict, _ = Pipeline.container(
             "predict",
-            "/main predict --test",
-            inputs=[repo, vectorizer, model],
+            "./main predict --test",
+            inputs=[repo, vectorizer, selector, model],
         )
         predict.after(train)
 
@@ -117,13 +119,16 @@ class Pipeline(Cli):
         commit, _ = Pipeline.container(
             "commit-changes",
             dedent("""
+              git diff --name-only
               git add .
               git commit -m "Update data" || true
               if [[ {} == master ]]; then
                 git push --dry-run
               fi
             """.format(revision)),
-            inputs=[repo, api, data, assets, vectorizer, model, pipe],
+            inputs=[
+                repo, api, data, assets, vectorizer, selector, model, pipe
+            ],
         )
         commit.after(build_pipeline)
 

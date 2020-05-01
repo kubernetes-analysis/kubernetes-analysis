@@ -53,10 +53,11 @@ flake8:
 pylint:
 	bash -c "shopt -s globstar && pylint ./**/*.py"
 
-.PHONY: ci
-ci:
+.PHONY: update-ci
+update-ci:
 	$(call replace-config,plugins)
 	$(call replace-config,config)
+	kubectl delete pods -n default --all
 
 define replace-config
 	kubectl -n default create configmap $1 \

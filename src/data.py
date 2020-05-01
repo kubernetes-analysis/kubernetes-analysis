@@ -181,8 +181,6 @@ class Data():
             logger.info("Adding new issue {}", new_issue["number"])
             self.__api_json.append(new_issue)
 
-        self.__init_api_json()
-
     def dump_api(self):
         with open(Data.API_DATA_JSON, "w") as outfile:
             json.dump(self.__api_json, outfile)
