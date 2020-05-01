@@ -26,7 +26,7 @@ class Issue():
         self.__number = data["number"]
         self.__markdown = data["body"]
 
-        fmt = "%Y-%m-%dT%H:%M:%S%z"
+        fmt = "%Y-%m-%dT%H:%M:%S%Z"
         self.__created = datetime.strptime(data["created_at"], fmt)
 
         if data["closed_at"] is not None:
