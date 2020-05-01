@@ -1,5 +1,10 @@
 FROM tensorflow/tensorflow:2.1.0-gpu-py3
 
+RUN RELEASE=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt) && \
+    curl -L https://storage.googleapis.com/kubernetes-release/release/$RELEASE/bin/linux/amd64/kubectl -o /usr/bin/kubectl && \
+    chmod +x /usr/bin/kubectl && \
+    kubectl version --client --short
+
 RUN apt-get update \
     && apt-get install -y \
         gir1.2-gtk-3.0 \
