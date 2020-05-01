@@ -54,3 +54,15 @@ flake8:
 .PHONY: pylint
 pylint:
 	bash -c "shopt -s globstar && pylint ./**/*.py"
+
+.PHONY: ci
+ci:
+	$(call replace-config,plugins)
+	$(call replace-config,config)
+
+define replace-config
+	kubectl -n default create configmap $1 \
+			--from-file=$1.yaml=ci/$1.yaml \
+			--dry-run=client -o yaml | \
+	kubectl -n default replace configmap $1 -f -
+endef

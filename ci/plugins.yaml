@@ -1,0 +1,23 @@
+---
+triggers:
+  - repos:
+      - kubernetes-analysis/kubernetes-analysis
+
+approve:
+  - repos:
+      - kubernetes-analysis/kubernetes-analysis
+    require_self_approval: false
+
+plugins:
+  kubernetes-analysis:
+    - approve
+    - assign
+    - help
+    - hold
+    - label
+    - lifecycle
+    - release-note
+    - retitle
+    - size
+    - trigger
+    - wip
