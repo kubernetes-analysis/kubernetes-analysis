@@ -1,24 +1,22 @@
-PIPELINE ?= "Kubernetes Analysis"
+COMMIT := $(shell git rev-parse --short HEAD)
+PIPELINE ?= "kubernetes-analysis-$(COMMIT)"
 
 .PHONY: pipeline
 pipeline:
 	./main pipeline
 
-.PHONY: pipeline-upload
-pipeline-upload: pipeline
-	kfp pipeline upload -p $(PIPELINE) data/pipeline.yaml || true
-
 .PHONY: pipeline-run
 pipeline-run:
-	kfp run submit -e Default -p $(call pipeline-id) -r test -w
+	kfp run submit \
+		-e ci \
+		-f data/pipeline.yaml \
+		-r test-$(COMMIT) \
+		revision=$(COMMIT) \
+		-w
 
 .PHONY: pipeline-delete
 pipeline-delete:
 	kfp pipeline delete $(call pipeline-id) || true
-
-define pipeline-id
-$(shell kfp pipeline list | grep $(PIPELINE) | awk {'print $$2'})
-endef
 
 .PHONY: assets
 assets:
