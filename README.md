@@ -1,4 +1,4 @@
-# Kubernetes Analysis [![CircleCI](https://circleci.com/gh/kubernetes-analysis/kubernetes-analysis.svg?style=shield)](https://circleci.com/gh/kubernetes-analysis/kubernetes-analysis) [![Quay](https://quay.io/repository/saschagrunert/kubernetes-analysis/status)](https://quay.io/repository/saschagrunert/kubernetes-analysis)
+# Kubernetes Analysis [![Quay](https://quay.io/repository/saschagrunert/kubernetes-analysis/status)](https://quay.io/repository/saschagrunert/kubernetes-analysis)
 
 ### Kubernetes issue and pull request analysis powered by machine learning
 
