@@ -15,7 +15,7 @@ class Nlp():
     MODEL_FILE = os.path.join(DATA_DIR, "model.h5")
     VECTORIZER_FILE = os.path.join(DATA_DIR, "vectorizer.pickle")
     SELECTOR_FILE = os.path.join(DATA_DIR, "selector.pickle")
-    TOP_FEATURES = 30000
+    TOP_FEATURES = 50000
 
     __train_texts: List[str]
     __train_labels: Any
@@ -125,9 +125,9 @@ class Nlp():
         model.compile(optimizer=optimizer, loss=loss, metrics=["acc"])
 
         # Create callback for early stopping on validation loss. If the loss
-        # does not decrease in two consecutive tries, stop training
+        # does not decrease in five consecutive tries, stop training
         callbacks = [
-            tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=2)
+            tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=5)
         ]
 
         # Train and validate model

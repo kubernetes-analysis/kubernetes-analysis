@@ -27,15 +27,54 @@ github_reporter:
 plank:
   job_url_template: "https://prow.k8s.saschagrunert.de/log?job={{.Spec.Job}}&id={{.Status.BuildID}}"
 
+stdenv: &stdenv
+  image: quay.io/saschagrunert/kubernetes-analysis:latest
+  imagePullPolicy: Always
+  volumeMounts:
+    - name: kubeconfig
+      mountPath: /root/.kube
+      readOnly: true
+
+volumes: &volumes
+  volumes:
+    - name: kubeconfig
+      secret:
+        secretName: kubeconfig
+
+periodics:
+  - name: data-update
+    interval: 1h
+    decorate: false
+    always_run: true
+    spec:
+      <<: *volumes
+      containers:
+        - <<: *stdenv
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euox pipefail
+
+              mkdir repo
+              pushd repo
+              git init
+              REPO=kubernetes-analysis
+              git remote add origin https://github.com/$REPO/$REPO
+              git fetch --depth=1 origin master
+              git checkout master
+
+              make pipeline-run
+
 presubmits:
   kubernetes-analysis/kubernetes-analysis:
     - name: pipeline-test
       decorate: false
       always_run: true
       spec:
+        <<: *volumes
         containers:
-          - image: quay.io/saschagrunert/kubernetes-analysis:latest
-            imagePullPolicy: Always
+          - <<: *stdenv
             command:
               - /bin/bash
               - -c
@@ -44,19 +83,10 @@ presubmits:
 
                 mkdir repo
                 pushd repo
-
                 git init
                 REPO=kubernetes-analysis
                 git remote add origin https://github.com/$REPO/$REPO
                 git fetch --depth=1 origin pull/$PULL_NUMBER/head:$PULL_NUMBER
                 git checkout $PULL_NUMBER
 
-                git status
-            volumeMounts:
-              - name: kubeconfig
-                mountPath: /root/.kube
-                readOnly: true
-        volumes:
-          - name: kubeconfig
-            secret:
-              secretName: kubeconfig
+                make pipeline-run

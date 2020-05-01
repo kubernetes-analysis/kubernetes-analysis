@@ -1,43 +1,61 @@
-COMMIT := $(shell git rev-parse --short HEAD)
-PIPELINE ?= "kubernetes-analysis-$(COMMIT)"
-
 .PHONY: pipeline
 pipeline:
 	./main pipeline
 
 .PHONY: pipeline-run
-pipeline-run:
-	kfp run submit \
-		-e ci \
-		-f data/pipeline.yaml \
-		-r test-$(COMMIT) \
-		revision=$(COMMIT) \
-		-w
-
-.PHONY: pipeline-delete
-pipeline-delete:
-	kfp pipeline delete $(call pipeline-id) || true
+pipeline-run: pipeline
+	ci/tree-status
+	ci/run
 
 .PHONY: assets
-assets:
+assets: \
+	assets-created \
+	assets-closed \
+	assets-created-vs-closed \
+	assets-labels-by-name \
+	assets-labels-by-group \
+	assets-labels-by-created \
+	assets-labels-by-closed
+
+
+.PHONY: assets-created
+assets-created:
 	./main analyze --created -s assets/created-all.svg
 	./main analyze --created --issues -s assets/created-issues.svg
 	./main analyze --created --pull-requests -s assets/created-pull-requests.svg
+
+.PHONY: assets-closed
+assets-closed:
 	./main analyze --closed -s assets/closed-all.svg
 	./main analyze --closed --issues -s assets/closed-issues.svg
 	./main analyze --closed --pull-requests -s assets/closed-pull-requests.svg
+
+.PHONY: assets-created-vs-closed
+assets-created-vs-closed:
 	./main analyze --created-vs-closed -s assets/created-vs-closed-all.svg
 	./main analyze --created-vs-closed --issues -s assets/created-vs-closed-issues.svg
 	./main analyze --created-vs-closed --pull-requests -s assets/created-vs-closed-pull-requests.svg
+
+.PHONY: assets-labels-by-name
+assets-labels-by-name:
 	./main analyze --labels-by-name -s assets/labels-by-name-all-top-25.svg
 	./main analyze --labels-by-name --issues -s assets/labels-by-name-issues-top-25.svg
 	./main analyze --labels-by-name --pull-requests -s assets/labels-by-name-pull-requests-top-25.svg
+
+.PHONY: assets-labels-by-group
+assets-labels-by-group:
 	./main analyze --labels-by-group -s assets/labels-by-group-all-top-25.svg
 	./main analyze --labels-by-group --issues -s assets/labels-by-group-issues-top-25.svg
 	./main analyze --labels-by-group --pull-requests -s assets/labels-by-group-pull-requests-top-25.svg
+
+.PHONY: assets-labels-by-created
+assets-labels-by-created:
 	./main analyze --users-by-created -s assets/users-by-created-all-top-25.svg
 	./main analyze --users-by-created --issues -s assets/users-by-created-issues-top-25.svg
 	./main analyze --users-by-created --pull-requests -s assets/users-by-created-pull-requests-top-25.svg
+
+.PHONY: assets-labels-by-closed
+assets-labels-by-closed:
 	./main analyze --users-by-closed -s assets/users-by-closed-all-top-25.svg
 	./main analyze --users-by-closed --issues -s assets/users-by-closed-issues-top-25.svg
 	./main analyze --users-by-closed --pull-requests -s assets/users-by-closed-pull-requests-top-25.svg

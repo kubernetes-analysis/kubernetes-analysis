@@ -31,15 +31,27 @@ class Pipeline(Cli):
 
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
-    def __run(revision: str = "master"):
+    def __run(pr: str = ""):
         # Checkout the source code
         checkout, checkout_outputs = Pipeline.container("checkout",
                                                         dedent("""
-                git clone git@github.com:saschagrunert/{repo}
+                mkdir {repo}
                 pushd {repo}
-                git checkout {rev}
+                git init
+                git remote add origin git@github.com:{repo}/{repo}
+
+                TARGET="pull/{pr}/head:{pr}"
+                REVISION="{pr}"
+
+                if [[ -z "{pr}" ]]; then
+                    TARGET=master
+                    REVISION=master
+                fi
+
+                git fetch --depth=1 origin "$TARGET"
+                git checkout "$REVISION"
                 popd
-            """.format(repo=Pipeline.REPO, rev=revision)),
+            """.format(repo=Pipeline.REPO, pr=pr)),
                                                         outputs={
                                                             "repo":
                                                             Pipeline.REPO,
@@ -72,7 +84,7 @@ class Pipeline(Cli):
         # Udpate the analysis assets
         update_assets, update_assets_outputs = Pipeline.container(
             "update-assets",
-            "echo make assets",
+            "make assets",
             inputs=[repo, data],
             outputs={"assets": "assets"})
         update_assets.after(update_data)
@@ -106,7 +118,10 @@ class Pipeline(Cli):
         # Build Pipeline for verification
         build_pipeline, build_pipeline_outputs = Pipeline.container(
             "build-pipeline",
-            "./main pipeline",
+            dedent("""
+                ./main pipeline
+                ci/tree-status
+            """),
             inputs=[repo],
             outputs={
                 "pipeline": Pipeline.FILE,
@@ -119,13 +134,12 @@ class Pipeline(Cli):
         commit, _ = Pipeline.container(
             "commit-changes",
             dedent("""
-              git diff --name-only
               git add .
               git commit -m "Update data" || true
-              if [[ {} == master ]]; then
-                git push --dry-run
+              if [[ -z "{}" ]]; then
+                  git push
               fi
-            """.format(revision)),
+            """.format(pr)),
             inputs=[
                 repo, api, data, assets, vectorizer, selector, model, pipe
             ],
@@ -177,6 +191,7 @@ class Pipeline(Cli):
 
         # Copy input artifacts correctly
         input_artifact_copy_args = ""
+        in_repo = False
         for i, path in enumerate(ctr.input_artifact_paths.values()):
             target_location = inputs[i][1]
             input_artifact_copy_args += "cp -r {fr} {to}\n".format(
@@ -184,7 +199,14 @@ class Pipeline(Cli):
 
             # Change to the repository path if available
             if target_location == Pipeline.REPO:
+                in_repo = True
                 input_artifact_copy_args += "cd {}\n".format(Pipeline.REPO)
+        # Show the git diff to validate
+        if in_repo:
+            input_artifact_copy_args += dedent("""
+                echo "git diff:"
+                git diff --name-only
+            """)
 
         # Assemble the command
         ctr.arguments = prepare_args + \

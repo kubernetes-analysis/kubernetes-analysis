@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PULL_NUMBER=${PULL_NUMBER:-}
+COMMIT=$(git rev-parse --short HEAD)
+
+exec 5>&1
+OUTPUT=$(kfp run submit \
+    -e ci \
+    -f data/pipeline.yaml \
+    -r test-"$PULL_NUMBER"-"$COMMIT" \
+    pr="$PULL_NUMBER" \
+    -w 2>&1 | tee >(cat - >&5))
+
+if [[ $OUTPUT =~ Failed ]]; then
+    echo Test failed
+    exit 1
+fi

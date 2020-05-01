@@ -2,9 +2,8 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: kubernetes-analysis-
-  annotations: {pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "master",
-      "name": "revision", "optional": true, "type": "String"}], "name": "Kubernetes
-      Analysis"}'}
+  annotations: {pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "",
+      "name": "pr", "optional": true, "type": "String"}], "name": "Kubernetes Analysis"}'}
 spec:
   entrypoint: kubernetes-analysis
   templates:
@@ -16,7 +15,13 @@ spec:
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
+
+        echo "git diff:"
+        git diff --name-only
+
         ./main pipeline
+        ci/tree-status
+
         mkdir -p /out/data
         cp -r data/pipeline.yaml /out/data/pipeline.yaml
       command: [bash, -c]
@@ -48,9 +53,21 @@ spec:
         set -euo pipefail
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
 
-        git clone git@github.com:saschagrunert/kubernetes-analysis
+        mkdir kubernetes-analysis
         pushd kubernetes-analysis
-        git checkout {{inputs.parameters.revision}}
+        git init
+        git remote add origin git@github.com:kubernetes-analysis/kubernetes-analysis
+
+        TARGET="pull/{{inputs.parameters.pr}}/head:{{inputs.parameters.pr}}"
+        REVISION="{{inputs.parameters.pr}}"
+
+        if [[ -z "{{inputs.parameters.pr}}" ]]; then
+            TARGET=master
+            REVISION=master
+        fi
+
+        git fetch --depth=1 origin "$TARGET"
+        git checkout "$REVISION"
         popd
 
         mkdir -p /out
@@ -64,7 +81,7 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       parameters:
-      - {name: revision}
+      - {name: pr}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -89,13 +106,17 @@ spec:
         cp -r /tmp/inputs/input-2/data data/data.tar.xz
         cp -r /tmp/inputs/input-3/data assets
         cp -r /tmp/inputs/input-4/data data/vectorizer.pickle
-        cp -r /tmp/inputs/input-5/data data/model.h5
-        cp -r /tmp/inputs/input-6/data data/pipeline.yaml
+        cp -r /tmp/inputs/input-5/data data/selector.pickle
+        cp -r /tmp/inputs/input-6/data data/model.h5
+        cp -r /tmp/inputs/input-7/data data/pipeline.yaml
+
+        echo "git diff:"
+        git diff --name-only
 
         git add .
         git commit -m "Update data" || true
-        if [[ {{inputs.parameters.revision}} == master ]]; then
-          git push --dry-run
+        if [[ -z "{{inputs.parameters.pr}}" ]]; then
+            git push
         fi
 
       command: [bash, -c]
@@ -107,15 +128,16 @@ spec:
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
       parameters:
-      - {name: revision}
+      - {name: pr}
       artifacts:
       - {name: checkout-repo, path: /tmp/inputs/input-0/data}
       - {name: update-api-api, path: /tmp/inputs/input-1/data}
       - {name: update-data-data, path: /tmp/inputs/input-2/data}
       - {name: update-assets-assets, path: /tmp/inputs/input-3/data}
       - {name: train-vectorizer, path: /tmp/inputs/input-4/data}
-      - {name: train-model, path: /tmp/inputs/input-5/data}
-      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-6/data}
+      - {name: train-selector, path: /tmp/inputs/input-5/data}
+      - {name: train-model, path: /tmp/inputs/input-6/data}
+      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-7/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -130,7 +152,7 @@ spec:
   - name: kubernetes-analysis
     inputs:
       parameters:
-      - {name: revision}
+      - {name: pr}
     dag:
       tasks:
       - name: build-pipeline
@@ -143,18 +165,19 @@ spec:
         template: checkout
         arguments:
           parameters:
-          - {name: revision, value: '{{inputs.parameters.revision}}'}
+          - {name: pr, value: '{{inputs.parameters.pr}}'}
       - name: commit-changes
         template: commit-changes
         dependencies: [build-pipeline, checkout, train, update-api, update-assets,
           update-data]
         arguments:
           parameters:
-          - {name: revision, value: '{{inputs.parameters.revision}}'}
+          - {name: pr, value: '{{inputs.parameters.pr}}'}
           artifacts:
           - {name: build-pipeline-pipeline, from: '{{tasks.build-pipeline.outputs.artifacts.build-pipeline-pipeline}}'}
           - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
+          - {name: train-selector, from: '{{tasks.train.outputs.artifacts.train-selector}}'}
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
           - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
           - {name: update-assets-assets, from: '{{tasks.update-assets.outputs.artifacts.update-assets-assets}}'}
@@ -166,6 +189,7 @@ spec:
           artifacts:
           - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: train-model, from: '{{tasks.train.outputs.artifacts.train-model}}'}
+          - {name: train-selector, from: '{{tasks.train.outputs.artifacts.train-selector}}'}
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
       - name: train
         template: train
@@ -203,8 +227,12 @@ spec:
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
         cp -r /tmp/inputs/input-1/data data/vectorizer.pickle
-        cp -r /tmp/inputs/input-2/data data/model.h5
-        /main predict --test
+        cp -r /tmp/inputs/input-2/data data/selector.pickle
+        cp -r /tmp/inputs/input-3/data data/model.h5
+
+        echo "git diff:"
+        git diff --name-only
+        ./main predict --test
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
       imagePullPolicy: Always
@@ -216,7 +244,8 @@ spec:
       artifacts:
       - {name: checkout-repo, path: /tmp/inputs/input-0/data}
       - {name: train-vectorizer, path: /tmp/inputs/input-1/data}
-      - {name: train-model, path: /tmp/inputs/input-2/data}
+      - {name: train-selector, path: /tmp/inputs/input-2/data}
+      - {name: train-model, path: /tmp/inputs/input-3/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -237,9 +266,14 @@ spec:
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
         cp -r /tmp/inputs/input-1/data data/data.tar.xz
+
+        echo "git diff:"
+        git diff --name-only
         ./main train
         mkdir -p /out/data
         cp -r data/vectorizer.pickle /out/data/vectorizer.pickle
+        mkdir -p /out/data
+        cp -r data/selector.pickle /out/data/selector.pickle
         mkdir -p /out/data
         cp -r data/model.h5 /out/data/model.h5
       command: [bash, -c]
@@ -260,6 +294,7 @@ spec:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: train-model, path: /out/data/model.h5}
+      - {name: train-selector, path: /out/data/selector.pickle}
       - {name: train-vectorizer, path: /out/data/vectorizer.pickle}
     volumes:
     - name: github-token
@@ -276,6 +311,9 @@ spec:
         export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
+
+        echo "git diff:"
+        git diff --name-only
         ./main export --update-api
         mkdir -p /out/data
         cp -r data/api.tar.xz /out/data/api.tar.xz
@@ -310,7 +348,10 @@ spec:
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
         cp -r /tmp/inputs/input-1/data data/data.tar.xz
-        echo make assets
+
+        echo "git diff:"
+        git diff --name-only
+        make assets
         mkdir -p /out
         cp -r assets /out/assets
       command: [bash, -c]
@@ -345,6 +386,9 @@ spec:
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
         cp -r /tmp/inputs/input-1/data data/api.tar.xz
+
+        echo "git diff:"
+        git diff --name-only
         ./main export --update-data
         mkdir -p /out/data
         cp -r data/data.tar.xz /out/data/data.tar.xz
@@ -373,5 +417,5 @@ spec:
       secret: {defaultMode: 384, secretName: ssh-key}
   arguments:
     parameters:
-    - {name: revision, value: master}
+    - {name: pr, value: ''}
   serviceAccountName: pipeline-runner

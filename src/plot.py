@@ -1,6 +1,5 @@
 from typing import Any, Tuple
 
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.style as style
 import matplotlib.ticker as ticker
@@ -14,7 +13,6 @@ class Plot():
 
     @staticmethod
     def init():
-        matplotlib.use("GTK3Agg")
         style.use("seaborn-ticks")
         style.use("seaborn-whitegrid")
         style.use("seaborn-pastel")

@@ -46,7 +46,7 @@ class Predict(Cli):
         parser.add_argument(
             "--treshold",
             "-r",
-            default=.8,
+            default=.6,
             type=float,
             help="The treshold for returning a positive exit code")
 
