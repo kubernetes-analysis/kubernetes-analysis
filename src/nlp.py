@@ -32,22 +32,31 @@ class Nlp():
 
     @staticmethod
     def predict(text: str) -> float:
+        v, s, model = Nlp.load_from_disk()
+        t = Nlp.transform(text, v, s)
+        result = model.predict(t)
+        return result[0][0].item()
+
+    @staticmethod
+    def transform(text: str, vectorizer: TfidfVectorizer,
+                  selector: SelectKBest) -> np.ndarray:
+        vectorized = vectorizer.transform([text])
+        selected = selector.transform(vectorized).astype("float32")
+        return selected.toarray()
+
+    @staticmethod
+    def load_from_disk(
+    ) -> Tuple[TfidfVectorizer, SelectKBest, tf.keras.models.Sequential]:
         # Load the vectorizer
         vectorizer = pickle.load(open(Nlp.VECTORIZER_FILE, "rb"))
 
         # Load the selector
         selector = pickle.load(open(Nlp.SELECTOR_FILE, "rb"))
 
-        # Prepare the input data
-        vectorized = vectorizer.transform([text])
-        selected = selector.transform(vectorized).astype("float32")
-
-        # Load the model and predict
+        # Load the model
         model = tf.keras.models.load_model(Nlp.MODEL_FILE)
 
-        result = model.predict(selected.toarray())
-
-        return result[0][0].item()
+        return (vectorizer, selector, model)
 
     def train(self, tune: bool = False):
         if tune:
@@ -227,7 +236,8 @@ class Nlp():
 
     @staticmethod
     def __mlp_model(layers: int, units: int, dropout_rate: float,
-                    input_shape: Tuple, num_classes: int) -> Any:
+                    input_shape: Tuple,
+                    num_classes: int) -> tf.keras.models.Sequential:
 
         units, activation = Nlp.__get_last_layer_units_and_activation(
             num_classes)

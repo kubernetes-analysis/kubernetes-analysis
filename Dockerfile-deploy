@@ -1,0 +1,12 @@
+# vim: set syntax=dockerfile:
+FROM quay.io/saschagrunert/kubernetes-analysis:latest
+
+WORKDIR /app
+
+COPY main .
+COPY src src
+COPY data/vectorizer.pickle data/vectorizer.pickle
+COPY data/selector.pickle data/selector.pickle
+COPY data/model.h5 data/model.h5
+
+CMD ["./main", "serve"]

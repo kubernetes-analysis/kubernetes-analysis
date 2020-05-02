@@ -1,4 +1,7 @@
-# Kubernetes Analysis [![Quay](https://quay.io/repository/saschagrunert/kubernetes-analysis/status)](https://quay.io/repository/saschagrunert/kubernetes-analysis)
+# Kubernetes Analysis
+
+[![Quay-1](https://quay.io/repository/saschagrunert/kubernetes-analysis/status)](https://quay.io/repository/saschagrunert/kubernetes-analysis)
+[![Quay-2](https://quay.io/repository/saschagrunert/kubernetes-analysis-kfserving/status)](https://quay.io/repository/saschagrunert/kubernetes-analysis-kfserving)
 
 ### Kubernetes issue and pull request analysis powered by machine learning
 
