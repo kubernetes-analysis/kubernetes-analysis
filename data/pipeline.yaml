@@ -103,12 +103,13 @@ spec:
         cp -r /tmp/inputs/input-0/data kubernetes-analysis
         cd kubernetes-analysis
         cp -r /tmp/inputs/input-1/data data/api.tar.xz
-        cp -r /tmp/inputs/input-2/data data/data.tar.xz
-        cp -r /tmp/inputs/input-3/data assets
-        cp -r /tmp/inputs/input-4/data data/vectorizer.pickle
-        cp -r /tmp/inputs/input-5/data data/selector.pickle
-        cp -r /tmp/inputs/input-6/data data/model.h5
-        cp -r /tmp/inputs/input-7/data data/pipeline.yaml
+        cp -r /tmp/inputs/input-2/data .update
+        cp -r /tmp/inputs/input-3/data data/data.tar.xz
+        cp -r /tmp/inputs/input-4/data assets
+        cp -r /tmp/inputs/input-5/data data/vectorizer.pickle
+        cp -r /tmp/inputs/input-6/data data/selector.pickle
+        cp -r /tmp/inputs/input-7/data data/model.h5
+        cp -r /tmp/inputs/input-8/data data/pipeline.yaml
 
         echo "git diff:"
         git diff --name-only
@@ -132,12 +133,13 @@ spec:
       artifacts:
       - {name: checkout-repo, path: /tmp/inputs/input-0/data}
       - {name: update-api-api, path: /tmp/inputs/input-1/data}
-      - {name: update-data-data, path: /tmp/inputs/input-2/data}
-      - {name: update-assets-assets, path: /tmp/inputs/input-3/data}
-      - {name: train-vectorizer, path: /tmp/inputs/input-4/data}
-      - {name: train-selector, path: /tmp/inputs/input-5/data}
-      - {name: train-model, path: /tmp/inputs/input-6/data}
-      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-7/data}
+      - {name: update-api-update-file, path: /tmp/inputs/input-2/data}
+      - {name: update-data-data, path: /tmp/inputs/input-3/data}
+      - {name: update-assets-assets, path: /tmp/inputs/input-4/data}
+      - {name: train-vectorizer, path: /tmp/inputs/input-5/data}
+      - {name: train-selector, path: /tmp/inputs/input-6/data}
+      - {name: train-model, path: /tmp/inputs/input-7/data}
+      - {name: build-pipeline-pipeline, path: /tmp/inputs/input-8/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
@@ -180,6 +182,7 @@ spec:
           - {name: train-selector, from: '{{tasks.train.outputs.artifacts.train-selector}}'}
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
           - {name: update-api-api, from: '{{tasks.update-api.outputs.artifacts.update-api-api}}'}
+          - {name: update-api-update-file, from: '{{tasks.update-api.outputs.artifacts.update-api-update-file}}'}
           - {name: update-assets-assets, from: '{{tasks.update-assets.outputs.artifacts.update-assets-assets}}'}
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
       - name: predict
@@ -317,6 +320,8 @@ spec:
         ./main export --update-api
         mkdir -p /out/data
         cp -r data/api.tar.xz /out/data/api.tar.xz
+        mkdir -p /out
+        cp -r .update /out/.update
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
       imagePullPolicy: Always
@@ -332,6 +337,7 @@ spec:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: update-api-api, path: /out/data/api.tar.xz}
+      - {name: update-api-update-file, path: /out/.update}
     volumes:
     - name: github-token
       secret: {secretName: github-token}

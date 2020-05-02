@@ -43,7 +43,7 @@ volumes: &volumes
 
 periodics:
   - name: data-update
-    interval: 1h
+    interval: 24h
     decorate: false
     always_run: true
     spec:
