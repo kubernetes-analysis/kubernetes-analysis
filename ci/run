@@ -4,15 +4,51 @@ set -euo pipefail
 PULL_NUMBER=${PULL_NUMBER:-}
 COMMIT=$(git rev-parse --short HEAD)
 
-exec 5>&1
-OUTPUT=$(kfp run submit \
-    -e ci \
-    -f data/pipeline.yaml \
-    -r test-"$PULL_NUMBER"-"$COMMIT" \
-    pr="$PULL_NUMBER" \
-    -w 2>&1 | tee >(cat - >&5))
+TMPFILE=$(mktemp)
 
-if [[ $OUTPUT =~ Failed ]]; then
-    echo Test failed
-    exit 1
-fi
+run() {
+    RUN_NAME="test-$COMMIT"
+    if [[ -n $PULL_NUMBER ]]; then
+        RUN_NAME="test-$PULL_NUMBER-$COMMIT"
+    fi
+    kfp run submit \
+        -e ci \
+        -f data/pipeline.yaml \
+        -r "$RUN_NAME" \
+        pr="$PULL_NUMBER" \
+        -w \
+        >>"$TMPFILE"
+}
+
+stream() {
+    tail --pid "$1" -f "$TMPFILE" &
+
+    WORKFLOW=""
+    CNT=0
+    while [[ -z $WORKFLOW ]]; do
+        echo "Waiting for workflow name ($CNT)"
+        WORKFLOW=$(sed -n '0,/^Name:\s\+\(.*\)$/s//\1/p' "$TMPFILE")
+        sleep 2
+        if [[ $CNT -gt 9 ]]; then
+            echo "Unable to get workflow name"
+            exit 1
+        fi
+        CNT=$((CNT + 1))
+    done
+    echo Found workflow "$WORKFLOW"
+
+    argo logs --no-color -f "$WORKFLOW"
+    wait
+
+    if grep -Eq "^Status:\s+Failed$" "$TMPFILE"; then
+        echo Argo workflow has failed
+        exit 1
+    fi
+}
+
+echo "Using logfile $TMPFILE"
+run &
+stream $!
+wait
+
+echo Done
