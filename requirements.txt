@@ -2,6 +2,7 @@ PyGObject
 PyGithub
 gitpython
 kfp
+kfserving
 loguru
 matplotlib
 numpy
