@@ -2,6 +2,7 @@ from typing import Dict
 
 import kfserving
 import tensorflow as tf
+import tornado.web
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 
@@ -28,7 +29,12 @@ class KFServer(kfserving.KFModel):
         self.ready = True
 
     def predict(self, request: Dict) -> Dict:
-        text = request["text"]
+        key = "text"
+        if key not in request:
+            raise tornado.web.HTTPError(
+                status_code=400,
+                reason="no '{}' key in request JSON".format(key))
+        text = request[key]
 
         t = Nlp.transform(text, self.__vectorizer, self.__selector)
         result = self.__model.predict(t)
