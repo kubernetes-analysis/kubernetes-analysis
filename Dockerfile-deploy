@@ -9,4 +9,4 @@ COPY data/vectorizer.pickle data/vectorizer.pickle
 COPY data/selector.pickle data/selector.pickle
 COPY data/model.h5 data/model.h5
 
-CMD ["./main", "serve"]
+ENTRYPOINT ["./main", "serve"]
