@@ -137,6 +137,7 @@ class Pipeline(Cli):
         commit, _ = Pipeline.container(
             "commit-changes",
             dedent("""
+              mv assets/data/*.svg assets/
               git add .
               git commit -m "Update data" || true
               if [[ -z "{}" ]]; then

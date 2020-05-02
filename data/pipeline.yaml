@@ -114,6 +114,7 @@ spec:
         echo "git diff:"
         git diff --name-only
 
+        mv assets/data/*.svg assets/
         git add .
         git commit -m "Update data" || true
         if [[ -z "{{inputs.parameters.pr}}" ]]; then
