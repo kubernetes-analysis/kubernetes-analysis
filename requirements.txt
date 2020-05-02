@@ -1,6 +1,8 @@
+Flask
 PyGObject
 PyGithub
 gitpython
+gunicorn
 kfp
 kfserving
 loguru
