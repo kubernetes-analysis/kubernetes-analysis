@@ -1,16 +1,10 @@
-PyGObject
 PyGithub
-flake8
 gitpython
-isort
 kfp
 kfserving
 loguru
 matplotlib
 numpy
-pycairo
-pylint
 sklearn
 tensorflow-gpu
 tornado
-yapf
