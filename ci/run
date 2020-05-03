@@ -15,6 +15,7 @@ run() {
         -e ci \
         -f data/pipeline.yaml \
         -r "$RUN_NAME" \
+        commit="$COMMIT" \
         pr="$PULL_NUMBER" \
         -w \
         >>"$TMPFILE"
@@ -40,7 +41,7 @@ stream() {
     argo logs --no-color -f "$WORKFLOW"
     wait
 
-    if grep -Eq "^Status:\s+Failed$" "$TMPFILE"; then
+    if grep -Eq "^Status:\s+(Failed|Error)$" "$TMPFILE"; then
         echo Argo workflow has failed
         exit 1
     fi

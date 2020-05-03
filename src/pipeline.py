@@ -1,4 +1,3 @@
-import json
 import os
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Tuple
@@ -17,8 +16,13 @@ from .nlp import Nlp
 class Pipeline(Cli):
     OUT_DIR = "/out"
     REPO = "kubernetes-analysis"
-    IMAGE = "quay.io/saschagrunert/{}:latest".format(REPO)
     FILE = Data.dir_path("pipeline.yaml")
+
+    IMAGE = "quay.io/saschagrunert/{}:latest".format(REPO)
+    DEPLOY_IMAGE = "quay.io/saschagrunert/kubernetes-analysis-kfserving"
+
+    GITHUB_TOKEN_MOUNT_PATH = "/secrets/github"
+    QUAY_SECRET_MOUNT_PATH = "/secrets/quay"
 
     @staticmethod
     def add_parser(command: str, subparsers: Any):
@@ -32,7 +36,7 @@ class Pipeline(Cli):
 
     @staticmethod
     @pipeline(name="Kubernetes Analysis")
-    def __run(pr: str = ""):
+    def __run(pr: str = "", commit: str = ""):
         # Checkout the source code
         checkout, checkout_outputs = Pipeline.container("checkout",
                                                         dedent("""
@@ -62,7 +66,10 @@ class Pipeline(Cli):
         # Udpate the API data
         update_api, update_api_outputs = Pipeline.container(
             "update-api",
-            "./main export --update-api",
+            dedent("""
+                export GITHUB_TOKEN=$(cat {path}/GITHUB_TOKEN)
+                ./main export --update-api
+            """.format(path=Pipeline.GITHUB_TOKEN_MOUNT_PATH)),
             inputs=[repo],
             outputs={
                 "api": Data.API_DATA_TARBALL,
@@ -118,23 +125,37 @@ class Pipeline(Cli):
         )
         predict.after(train)
 
-        # Build Pipeline for verification
-        build_pipeline, build_pipeline_outputs = Pipeline.container(
-            "build-pipeline",
+        # Build deployment image
+        build_image, _ = Pipeline.container(
+            "build-image",
             dedent("""
-                ./main pipeline
-                ci/tree-status
-            """),
-            inputs=[repo],
-            outputs={
-                "pipeline": Pipeline.FILE,
-            },
+                buildah bud --isolation=chroot -f Dockerfile-deploy \
+                    -t {image}:{commit}
+
+                buildah login -u saschagrunert+kubeflow \
+                    -p $(cat {secret}/password) quay.io
+
+                buildah push {image}:{commit}
+
+                if [[ -z "{pr}" ]]; then
+                    buildah tag {image}:{commit} {image}:latest
+                    buildah push {image}:latest
+                fi
+            """.format(image=Pipeline.DEPLOY_IMAGE,
+                       commit=commit,
+                       secret=Pipeline.QUAY_SECRET_MOUNT_PATH,
+                       pr=pr)),
+            inputs=[repo, vectorizer, selector, model],
         )
-        build_pipeline.after(predict)
-        pipe = build_pipeline_outputs["pipeline"]
+        for ctr in ["main", "wait"]:
+            build_image.add_pod_annotation(
+                "container.apparmor.security.beta.kubernetes.io/" + ctr,
+                "unconfined",
+            )
+        build_image.after(predict)
 
         # Commit changes
-        commit, _ = Pipeline.container(
+        commit_changes, _ = Pipeline.container(
             "commit-changes",
             dedent("""
               mv assets/data/*.svg assets/
@@ -146,10 +167,25 @@ class Pipeline(Cli):
             """.format(pr)),
             inputs=[
                 repo, api, update_file, data, assets, vectorizer, selector,
-                model, pipe
+                model
             ],
         )
-        commit.after(build_pipeline)
+        commit_changes.after(build_image)
+
+        # Rollout the deployed image
+        rollout, _ = Pipeline.container(
+            "rollout",
+            dedent("""
+                if [[ -n "{pr}" ]]; then
+                    echo Skipping rollout since this is a PR
+                    sleep 10
+                    exit 0
+                fi
+
+                ./main rollout -t {tag}
+            """.format(pr=pr, tag=commit)),
+        )
+        rollout.after(commit_changes)
 
     @staticmethod
     def container(
@@ -189,9 +225,6 @@ class Pipeline(Cli):
         )
         ctr.container.set_image_pull_policy("Always")
 
-        # Set the GitHub token
-        token_args = "export GITHUB_TOKEN=$(cat /secret/GITHUB_TOKEN)\n"
-
         # Copy input artifacts correctly
         input_artifact_copy_args = ""
         in_repo = False
@@ -213,7 +246,6 @@ class Pipeline(Cli):
 
         # Assemble the command
         ctr.arguments = prepare_args + \
-            token_args + \
             input_artifact_copy_args + \
             arguments + \
             "\n" + \
@@ -235,7 +267,17 @@ class Pipeline(Cli):
         ctr.container.add_volume_mount(
             k8s.V1VolumeMount(name=gh_token,
                               read_only=True,
-                              mount_path="/secret"))
+                              mount_path=Pipeline.GITHUB_TOKEN_MOUNT_PATH))
+
+        # Quay Login
+        quay = "quay"
+        ctr.add_volume(
+            k8s.V1Volume(name=quay,
+                         secret=k8s.V1SecretVolumeSource(secret_name=quay)))
+        ctr.container.add_volume_mount(
+            k8s.V1VolumeMount(name=quay,
+                              read_only=True,
+                              mount_path=Pipeline.QUAY_SECRET_MOUNT_PATH))
 
         # SSH Key
         ssh_key = "ssh-key"
@@ -254,16 +296,6 @@ class Pipeline(Cli):
             consumable_inputs[k] = (ctr.outputs[k], outputs[k])
 
         return ctr, consumable_inputs
-
-    @staticmethod
-    def markdown_metadata(result: str) -> str:
-        return json.dumps({
-            "outputs": [{
-                "type": "markdown",
-                "source": "The result: %s" % result,
-                "storage": "inline",
-            }]
-        })
 
     @staticmethod
     def default_artifact_path() -> Dict[str, str]:

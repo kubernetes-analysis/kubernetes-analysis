@@ -45,7 +45,6 @@ periodics:
   - name: data-update
     interval: 24h
     decorate: false
-    always_run: true
     spec:
       <<: *volumes
       containers:
@@ -55,16 +54,38 @@ periodics:
             - -c
             - |
               set -euox pipefail
-
-              mkdir repo
-              pushd repo
-              git init
+              mkdir repo && pushd repo && git init
               REPO=kubernetes-analysis
+
               git remote add origin https://github.com/$REPO/$REPO
               git fetch --depth=1 origin master
               git checkout master
 
               make pipeline-run
+
+postsubmits:
+  kubernetes-analysis/kubernetes-analysis:
+    - name: pipeline-test
+      decorate: false
+      branches:
+        - ^master$
+      spec:
+        <<: *volumes
+        containers:
+          - <<: *stdenv
+            command:
+              - /bin/bash
+              - -c
+              - |
+                set -euox pipefail
+                mkdir repo && pushd repo && git init
+                REPO=kubernetes-analysis
+
+                git remote add origin https://github.com/$REPO/$REPO
+                git fetch --depth=1 origin master
+                git checkout master
+
+                make pipeline-run
 
 presubmits:
   kubernetes-analysis/kubernetes-analysis:
@@ -80,11 +101,9 @@ presubmits:
               - -c
               - |
                 set -euox pipefail
-
-                mkdir repo
-                pushd repo
-                git init
+                mkdir repo && pushd repo && git init
                 REPO=kubernetes-analysis
+
                 git remote add origin https://github.com/$REPO/$REPO
                 git fetch --depth=1 origin pull/$PULL_NUMBER/head:$PULL_NUMBER
                 git checkout $PULL_NUMBER
@@ -103,11 +122,9 @@ presubmits:
               - -c
               - |
                 set -euox pipefail
-
-                mkdir repo
-                pushd repo
-                git init
+                mkdir repo && pushd repo && git init
                 REPO=kubernetes-analysis
+
                 git remote add origin https://github.com/$REPO/$REPO
                 git fetch --depth=1 origin pull/$PULL_NUMBER/head:$PULL_NUMBER
                 git checkout $PULL_NUMBER

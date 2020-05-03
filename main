@@ -6,6 +6,7 @@ from src.analyze import Analyze
 from src.export import Export
 from src.pipeline import Pipeline
 from src.predict import Predict
+from src.rollout import Rollout
 from src.serve import Serve
 from src.train import Train
 
@@ -15,6 +16,7 @@ COMMAND_TRAIN = "train"
 COMMAND_PREDICT = "predict"
 COMMAND_PIPELINE = "pipeline"
 COMMAND_SERVE = "serve"
+COMMAND_ROLLOUT = "rollout"
 
 
 def main():
@@ -38,6 +40,9 @@ def main():
     if args.command == COMMAND_SERVE:
         Serve(args).run()
 
+    if args.command == COMMAND_ROLLOUT:
+        Rollout(args).run()
+
 
 def parse_args() -> Any:
     parser = argparse.ArgumentParser()
@@ -51,6 +56,7 @@ def parse_args() -> Any:
     Predict.add_parser(COMMAND_PREDICT, subparsers)
     Pipeline.add_parser(COMMAND_PIPELINE, subparsers)
     Serve.add_parser(COMMAND_SERVE, subparsers)
+    Rollout.add_parser(COMMAND_ROLLOUT, subparsers)
 
     return parser.parse_args()
 
