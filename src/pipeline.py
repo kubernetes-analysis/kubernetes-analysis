@@ -40,21 +40,13 @@ class Pipeline(Cli):
         # Checkout the source code
         checkout, checkout_outputs = Pipeline.container("checkout",
                                                         dedent("""
-                mkdir {repo}
+                git clone --depth=1 git@github.com:{repo}/{repo}
                 pushd {repo}
-                git init
-                git remote add origin git@github.com:{repo}/{repo}
-
-                TARGET="pull/{pr}/head:{pr}"
-                REVISION="{pr}"
-
-                if [[ -z "{pr}" ]]; then
-                    TARGET=master
-                    REVISION=master
+                if [[ -n "{pr}" ]]; then
+                    curl -L https://github.com/{repo}/{repo}/pull/{pr}.patch \
+                        > ../pr.patch
+                    git apply ../pr.patch
                 fi
-
-                git fetch --depth=1 origin "$TARGET"
-                git checkout "$REVISION"
                 popd
             """.format(repo=Pipeline.REPO, pr=pr)),
                                                         outputs={

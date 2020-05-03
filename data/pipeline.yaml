@@ -72,21 +72,12 @@ spec:
       - |
         set -euo pipefail
 
-        mkdir kubernetes-analysis
+        git clone --depth=1 git@github.com:kubernetes-analysis/kubernetes-analysis
         pushd kubernetes-analysis
-        git init
-        git remote add origin git@github.com:kubernetes-analysis/kubernetes-analysis
-
-        TARGET="pull/{{inputs.parameters.pr}}/head:{{inputs.parameters.pr}}"
-        REVISION="{{inputs.parameters.pr}}"
-
-        if [[ -z "{{inputs.parameters.pr}}" ]]; then
-            TARGET=master
-            REVISION=master
+        if [[ -n "{{inputs.parameters.pr}}" ]]; then
+            curl -L https://github.com/kubernetes-analysis/kubernetes-analysis/pull/{{inputs.parameters.pr}}.patch                         > ../pr.patch
+            git apply ../pr.patch
         fi
-
-        git fetch --depth=1 origin "$TARGET"
-        git checkout "$REVISION"
         popd
 
         mkdir -p /out
