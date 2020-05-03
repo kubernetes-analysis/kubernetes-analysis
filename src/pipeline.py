@@ -184,6 +184,7 @@ class Pipeline(Cli):
 
                 ./main rollout -t {tag}
             """.format(pr=pr, tag=commit)),
+            inputs=[repo],
         )
         rollout.after(commit_changes)
 

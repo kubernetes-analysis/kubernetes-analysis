@@ -224,11 +224,13 @@ spec:
           - {name: train-vectorizer, from: '{{tasks.train.outputs.artifacts.train-vectorizer}}'}
       - name: rollout
         template: rollout
-        dependencies: [commit-changes]
+        dependencies: [checkout, commit-changes]
         arguments:
           parameters:
           - {name: commit, value: '{{inputs.parameters.commit}}'}
           - {name: pr, value: '{{inputs.parameters.pr}}'}
+          artifacts:
+          - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
       - name: train
         template: train
         dependencies: [checkout, update-data]
@@ -302,6 +304,11 @@ spec:
       args:
       - |+
         set -euo pipefail
+        cp -r /tmp/inputs/input-0/data kubernetes-analysis
+        cd kubernetes-analysis
+
+        echo "git diff:"
+        git diff --name-only
 
         if [[ -n "{{inputs.parameters.pr}}" ]]; then
             echo Skipping rollout since this is a PR
@@ -323,6 +330,8 @@ spec:
       parameters:
       - {name: commit}
       - {name: pr}
+      artifacts:
+      - {name: checkout-repo, path: /tmp/inputs/input-0/data}
     outputs:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
