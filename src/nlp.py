@@ -191,12 +191,12 @@ class Nlp():
 
     @staticmethod
     def __vectorize(
-            train: List[str],
-            test: List[str],
-            labels: List[str],
-            ngram_range: Tuple[int, int],
-            min_df: int,
-            max_df: float,
+        train: List[str],
+        test: List[str],
+        labels: List[str],
+        ngram_range: Tuple[int, int],
+        min_df: int,
+        max_df: float,
     ) -> Tuple[Any, Any]:
         vectorizer = TfidfVectorizer(
             analyzer="word",

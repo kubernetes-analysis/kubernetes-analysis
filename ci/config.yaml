@@ -90,3 +90,26 @@ presubmits:
                 git checkout $PULL_NUMBER
 
                 make pipeline-run
+
+    - name: lint
+      decorate: false
+      always_run: true
+      spec:
+        <<: *volumes
+        containers:
+          - <<: *stdenv
+            command:
+              - /bin/bash
+              - -c
+              - |
+                set -euox pipefail
+
+                mkdir repo
+                pushd repo
+                git init
+                REPO=kubernetes-analysis
+                git remote add origin https://github.com/$REPO/$REPO
+                git fetch --depth=1 origin pull/$PULL_NUMBER/head:$PULL_NUMBER
+                git checkout $PULL_NUMBER
+
+                make lint

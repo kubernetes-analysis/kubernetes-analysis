@@ -216,8 +216,8 @@ class Data():
             lambda label: self.__filter_regex(label.group))
 
     def __filter_regex(
-            self,
-            string: Optional[str],
+        self,
+        string: Optional[str],
     ) -> Optional[str]:
         if not string:
             return None
@@ -276,9 +276,9 @@ class Data():
 
     @staticmethod
     def __grouped_by_labels(
-            fun: Callable[[Label], Optional[str]],
-            items: List[Issue],
-            sort_reverse: bool = False,
+        fun: Callable[[Label], Optional[str]],
+        items: List[Issue],
+        sort_reverse: bool = False,
     ) -> List[Tuple[Label, List[Issue]]]:
         res: Dict[str, Tuple[Label, List[Issue]]] = {}
         for item in items:
@@ -308,10 +308,9 @@ class Data():
             series.add(fun(issue), len(issues))
         return series
 
-    # yapf: disable
     def __grouped_by_users(
-            self,
-            fun: Callable[[Issue], Optional[str]],
+        self,
+        fun: Callable[[Issue], Optional[str]],
     ) -> List[Tuple[Issue, List[Issue]]]:
         res: Dict[str, Tuple[Issue, List[Issue]]] = {}
         for item in self.__items():

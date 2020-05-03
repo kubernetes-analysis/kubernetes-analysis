@@ -61,15 +61,8 @@ assets-labels-by-closed:
 	./main analyze --users-by-closed --pull-requests -s assets/users-by-closed-pull-requests-top-25.svg
 
 .PHONY: lint
-lint: pylint flake8
-
-.PHONY: flake8
-flake8:
-	flake8
-
-.PHONY: pylint
-pylint:
-	bash -c "shopt -s globstar && pylint ./**/*.py"
+lint:
+	ci/lint
 
 .PHONY: update-ci
 update-ci:

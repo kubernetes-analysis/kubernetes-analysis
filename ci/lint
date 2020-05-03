@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euox pipefail
+
+shopt -s globstar
+
+# lint
+pylint ./**/*.py
+flake8 ./**/*.py
+
+# format
+isort -y -rc
+yapf -i -r .
+
+# validate
+ci/tree-status

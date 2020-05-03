@@ -4,10 +4,12 @@ kind: InferenceService
 metadata:
   labels:
     controller-tools.k8s.io: "1.0"
-  name: kubernetes-analysis-kfserving
+  name: kubernetes-analysis
+  namespace: kfserving
 spec:
   default:
     predictor:
       custom:
         container:
           image: quay.io/saschagrunert/kubernetes-analysis-kfserving:latest
+          imagePullPolicy: Always

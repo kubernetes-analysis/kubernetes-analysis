@@ -151,13 +151,12 @@ class Pipeline(Cli):
         )
         commit.after(build_pipeline)
 
-    # yapf: disable
     @staticmethod
     def container(
-            name: str,
-            arguments: str,
-            inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
-            outputs: Optional[Dict[str, str]] = None,
+        name: str,
+        arguments: str,
+        inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
+        outputs: Optional[Dict[str, str]] = None,
     ) -> Tuple[ContainerOp, Dict[str, Tuple[InputArgumentPath, str]]]:
         # Set the correct shell parameters
         prepare_args = "set -euo pipefail\n"
@@ -185,9 +184,8 @@ class Pipeline(Cli):
             command=["bash", "-c"],
             output_artifact_paths=Pipeline.default_artifact_path(),
             file_outputs=file_outputs,
-            artifact_argument_paths=[
-                InputArgumentPath(x[0]) for x in inputs
-            ] if inputs else None,
+            artifact_argument_paths=[InputArgumentPath(x[0])
+                                     for x in inputs] if inputs else None,
         )
         ctr.container.set_image_pull_policy("Always")
 
