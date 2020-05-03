@@ -65,7 +65,7 @@ periodics:
 
 postsubmits:
   kubernetes-analysis/kubernetes-analysis:
-    - name: pipeline-test
+    - name: pipeline
       decorate: false
       branches:
         - ^master$
@@ -85,7 +85,9 @@ postsubmits:
                 git fetch --depth=1 origin master
                 git checkout master
 
-                make pipeline-run
+                if ! git log -1 --pretty=oneline | grep -q "Update data"; then
+                  make pipeline-run
+                fi
 
 presubmits:
   kubernetes-analysis/kubernetes-analysis:
