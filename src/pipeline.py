@@ -46,6 +46,8 @@ class Pipeline(Cli):
                     curl -L https://github.com/{repo}/{repo}/pull/{pr}.patch \
                         > ../pr.patch
                     git apply ../pr.patch
+                    git add .
+                    git commit -m "Apply patch"
                 fi
                 popd
             """.format(repo=Pipeline.REPO, pr=pr)),

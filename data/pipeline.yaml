@@ -77,6 +77,8 @@ spec:
         if [[ -n "{{inputs.parameters.pr}}" ]]; then
             curl -L https://github.com/kubernetes-analysis/kubernetes-analysis/pull/{{inputs.parameters.pr}}.patch                         > ../pr.patch
             git apply ../pr.patch
+            git add .
+            git commit -m "Apply patch"
         fi
         popd
 
