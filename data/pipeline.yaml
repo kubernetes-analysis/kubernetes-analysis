@@ -136,7 +136,7 @@ spec:
 
         mv assets/data/*.svg assets/
         git add .
-        git commit -m "Update data" || true
+        git commit --allow-empty -m "Update data [skip]"
         if [[ -z "{{inputs.parameters.pr}}" ]]; then
             git push
         fi

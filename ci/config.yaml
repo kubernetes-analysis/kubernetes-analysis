@@ -85,7 +85,7 @@ postsubmits:
                 git fetch --depth=1 origin master
                 git checkout master
 
-                if ! git log -1 --pretty=oneline | grep -q "Update data"; then
+                if ! git log -1 --pretty=oneline | grep -q "[skip]"; then
                   make pipeline-run
                 fi
 

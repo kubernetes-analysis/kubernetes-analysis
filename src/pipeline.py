@@ -160,7 +160,7 @@ class Pipeline(Cli):
             dedent("""
               mv assets/data/*.svg assets/
               git add .
-              git commit -m "Update data" || true
+              git commit --allow-empty -m "Update data [skip]"
               if [[ -z "{}" ]]; then
                   git push
               fi
