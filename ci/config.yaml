@@ -79,7 +79,7 @@ postsubmits:
                 git clone --depth=1 https://github.com/$REPO/$REPO
                 pushd $REPO
 
-                if ! git log -1 --pretty=oneline | grep -q "[skip]"; then
+                if ! git log -1 --pretty=oneline | grep -q "\[skip\]"; then
                   make pipeline-run
                 fi
 
