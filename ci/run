@@ -38,7 +38,9 @@ stream() {
     done
     echo Found workflow "$WORKFLOW"
 
-    argo logs --no-color -f "$WORKFLOW"
+    trap "argo terminate -n kubeflow $WORKFLOW" ERR
+
+    argo logs -n kubeflow --no-color -f "$WORKFLOW"
     wait
 
     if grep -Eq "^Status:\s+(Failed|Error)$" "$TMPFILE"; then
