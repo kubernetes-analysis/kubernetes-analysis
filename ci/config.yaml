@@ -105,7 +105,7 @@ presubmits:
                 git apply ../pr.patch
                 git add .
                 git commit -m "Apply patch"
-                make pipeline-run
+                make pipeline-run COMMIT=$PULL_PULL_SHA
 
     - name: lint
       decorate: false

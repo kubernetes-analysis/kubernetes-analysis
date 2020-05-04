@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PULL_NUMBER=${PULL_NUMBER:-}
-COMMIT=$(git rev-parse --short HEAD)
+COMMIT=${COMMIT:-$(git rev-parse HEAD)}
 
 TMPFILE=$(mktemp)
 
