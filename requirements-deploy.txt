@@ -2,6 +2,7 @@ PyGithub
 gitpython
 kfp
 kfserving
+kubernetes==10.0.1
 loguru
 matplotlib
 numpy
