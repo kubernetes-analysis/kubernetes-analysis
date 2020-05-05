@@ -38,7 +38,7 @@ stream() {
     done
     echo Found workflow "$WORKFLOW"
 
-    trap "argo terminate -n kubeflow $WORKFLOW" ERR
+    trap 'argo terminate -n kubeflow $WORKFLOW' INT TERM
 
     argo logs -n kubeflow --no-color -f "$WORKFLOW"
     wait
