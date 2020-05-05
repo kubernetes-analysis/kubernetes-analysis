@@ -20,6 +20,7 @@ func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 func handlePullRequestEvent(
 	log *logrus.Entry, ghc github.Client, pre *github.PullRequestEvent,
 ) error {
+	// Filter out some events
 	if pre.Action != github.PullRequestActionOpened &&
 		pre.Action != github.PullRequestActionEdited &&
 		pre.Action != github.PullRequestActionSynchronize &&
