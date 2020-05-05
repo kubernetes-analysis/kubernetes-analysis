@@ -2,7 +2,8 @@ from typing import Any
 
 from kfserving import (KFServingClient, V1alpha2CustomSpec,
                        V1alpha2EndpointSpec, V1alpha2PredictorSpec)
-from kubernetes.client import V1Container
+from kubernetes.client import (V1Container, V1EnvVar, V1EnvVarSource,
+                               V1ObjectFieldSelector)
 from loguru import logger
 
 from .cli import Cli
@@ -36,6 +37,11 @@ class Rollout(Cli):
                 name=Serve.SERVICE_NAME,
                 image="{}:{}".format(Pipeline.DEPLOY_IMAGE, self.args.tag),
                 image_pull_policy="Always",
+                env_from=V1EnvVar(
+                    name="IMAGE",
+                    value_from=V1EnvVarSource(field_ref=V1ObjectFieldSelector(
+                        api_version="v1",
+                        field_path=".spec.containers[0].image"))),
             ))))
 
         logger.info("Rolling out canary deployment")

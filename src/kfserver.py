@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 import kfserving
@@ -39,4 +40,7 @@ class KFServer(kfserving.KFModel):
         t = Nlp.transform(text, self.__vectorizer, self.__selector)
         result = self.__model.predict(t)
 
-        return {"result": result[0][0].item()}
+        return {
+            "result": result[0][0].item(),
+            "image": os.environ.get("IMAGE")
+        }
