@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: kubernetes-analysis
+spec:
+  selector:
+    app: kubernetes-analysis
+  ports:
+    - port: 80
+      targetPort: 8888
+      nodePort: 30888
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: kubernetes-analysis
+  labels:
+    app: kubernetes-analysis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-analysis
+  template:
+    metadata:
+      labels:
+        app: kubernetes-analysis
+    spec:
+      containers:
+        - name: kubernetes-analysis
+          image: quay.io/saschagrunert/kubernetes-analysis-plugin:latest
+          imagePullPolicy: Always
+          args:
+            - --github-token-path=/etc/github/oauth
+            - --dry-run=true
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: hmac
+              mountPath: /etc/webhook
+              readOnly: true
+            - name: oauth
+              mountPath: /etc/github
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+      volumes:
+        - name: hmac
+          secret:
+            defaultMode: 420
+            secretName: hmac-token
+        - name: oauth
+          secret:
+            defaultMode: 420
+            secretName: oauth-token
+        - name: plugins
+          configMap:
+            defaultMode: 420
+            name: plugins

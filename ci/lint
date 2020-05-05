@@ -7,6 +7,15 @@ shopt -s globstar
 pylint ./**/*.py
 flake8 ./**/*.py
 
+VERSION=v1.26.0
+URL=https://raw.githubusercontent.com/golangci/golangci-lint
+export BINDIR=bin
+curl -sfL $URL/$VERSION/install.sh | sh -s $VERSION
+bin/golangci-lint linters
+pushd plugin
+../bin/golangci-lint run
+popd
+
 # format
 isort -y -rc
 yapf -i -r .

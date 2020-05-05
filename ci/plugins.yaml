@@ -21,3 +21,10 @@ plugins:
     - size
     - trigger
     - wip
+
+external_plugins:
+  kubernetes-analysis:
+    - name: refresh-remote
+      endpoint: https://prow-plugin.k8s.saschagrunert.de
+      events:
+        - pull_request

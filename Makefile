@@ -76,3 +76,10 @@ define replace-config
 			--dry-run=client -o yaml | \
 	kubectl -n default replace configmap $1 -f -
 endef
+
+.PHONY: update-plugin
+update-plugin:
+	IMAGE=quay.io/saschagrunert/kubernetes-analysis-plugin:latest && \
+	buildah bud -f Dockerfile-plugin -t $$IMAGE && \
+	buildah push $$IMAGE
+	kubectl apply -f deploy/plugin.yaml
