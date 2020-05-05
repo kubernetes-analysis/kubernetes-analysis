@@ -13,13 +13,18 @@ RUN VERSION=v2.8.0-rc3 && \
 
 # install required packages
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get -qq -y install \
         gir1.2-gtk-3.0 \
         git \
         gobject-introspection \
         libgirepository1.0-dev \
         libcairo2-dev \
         wget
+
+# install golang
+RUN add-apt-repository ppa:longsleep/golang-backports -y && \
+    apt-get update && \
+    apt-get -qq -y install golang-go
 
 # install buildah
 RUN . /etc/os-release && \
