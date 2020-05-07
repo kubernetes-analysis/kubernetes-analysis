@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -20,9 +19,7 @@ type Server struct {
 
 // NewServer creates a new server instance.
 func NewServer(
-	tokenGenerator func() []byte,
-	ghc github.Client,
-	log *logrus.Entry,
+	tokenGenerator func() []byte, ghc github.Client, log *logrus.Entry,
 ) *Server {
 	return &Server{tokenGenerator, ghc, log}
 }
@@ -33,13 +30,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w, r, s.tokenGenerator,
 	)
 	if !ok {
+		s.log.Error("Unable to validate webhook")
 		return
 	}
 
-	fmt.Fprint(w, "event received")
-
 	if err := s.handleEvent(eventType, eventGUID, payload); err != nil {
-		logrus.WithError(err).Error("parsing event failed")
+		logrus.WithError(err).Error("handling event failed")
 	}
 }
 
@@ -65,6 +61,20 @@ func (s *Server) handleEvent(eventType, eventGUID string, payload []byte) error 
 					Error("Unable to handle event")
 			}
 		}()
+	case "issue_comment":
+		var ice github.IssueCommentEvent
+		if err := json.Unmarshal(payload, &ice); err != nil {
+			return errors.Wrap(err, "unmarshalling issue comment")
+		}
+
+		go func() {
+			if err := handleIssueComment(l, s.ghc, &ice); err != nil {
+				l.WithField("event-type", eventType).
+					WithError(err).
+					Info("Unable to handle event")
+			}
+		}()
+
 	default:
 		s.log.Infof(
 			"received an event of type %q but didn't ask for it", eventType,

@@ -4,5 +4,6 @@
 .mypy_cache/
 __pycache__/
 bin
+coverage.*
 data/data.pickle
 plugin/plugin

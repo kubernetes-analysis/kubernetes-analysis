@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	plugin "github.com/kubernetes-analysis/kubernetes-analysis/plugin/pkg"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/pkg/flagutil"
@@ -18,6 +16,8 @@ import (
 	"k8s.io/test-infra/prow/interrupts"
 	"k8s.io/test-infra/prow/pluginhelp/externalplugins"
 	"k8s.io/test-infra/prow/plugins"
+
+	plugin "github.com/kubernetes-analysis/kubernetes-analysis/plugin/pkg"
 )
 
 const (

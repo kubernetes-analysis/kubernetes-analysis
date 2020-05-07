@@ -5,7 +5,9 @@ run:
 linters:
   disable-all: true
   enable:
+    # - goerr113
     # - gomnd
+    # - gosec
     # - wsl
     - asciicheck
     - bodyclose
@@ -23,13 +25,11 @@ linters:
     - gocyclo
     - godot
     - godox
-    - goerr113
     - gofmt
     - goimports
     - golint
     - gomodguard
     - goprintffuncname
-    - gosec
     - gosimple
     - govet
     - ineffassign

@@ -128,3 +128,25 @@ presubmits:
                 git add .
                 git commit -m "Apply patch"
                 make lint
+
+    - name: go-test
+      decorate: false
+      always_run: true
+      spec:
+        <<: *volumes
+        containers:
+          - <<: *stdenv
+            command:
+              - /bin/bash
+              - -c
+              - |
+                set -euox pipefail
+                REPO=kubernetes-analysis
+                URL=https://github.com/$REPO/$REPO
+                git clone --depth=1 $URL
+                pushd $REPO
+                curl -L $URL/pull/$PULL_NUMBER.patch > ../pr.patch
+                git apply ../pr.patch
+                git add .
+                git commit -m "Apply patch"
+                make -C plugin test

@@ -5,7 +5,9 @@ go 1.14
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
+	k8s.io/release v0.2.7
 	k8s.io/test-infra v0.0.0-20200504223708-6c76e02fb720
+	github.com/stretchr/testify v1.5.1
 )
 
 replace (

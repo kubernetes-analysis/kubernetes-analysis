@@ -28,3 +28,4 @@ external_plugins:
       endpoint: https://prow-plugin.k8s.saschagrunert.de
       events:
         - pull_request
+        - issue_comment
