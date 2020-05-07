@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euox pipefail
-
 shopt -s globstar
 
 # lint
