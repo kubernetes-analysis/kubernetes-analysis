@@ -10,8 +10,6 @@ spec:
   ports:
     - port: 80
       targetPort: 8888
-      nodePort: 30888
-  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,7 +19,7 @@ metadata:
   labels:
     app: kubernetes-analysis
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: kubernetes-analysis

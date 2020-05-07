@@ -83,3 +83,14 @@ update-plugin:
 	buildah bud -f Dockerfile-plugin -t $$IMAGE && \
 	buildah push $$IMAGE
 	kubectl apply -f deploy/plugin.yaml
+
+.PHONY: go-build
+go-build:
+	go build \
+		-tags "netgo" \
+		-ldflags '-s -w -linkmode external -extldflags "-static -lm"'
+
+.PHONY: go-test
+go-test:
+	go test -v -count=1 -cover -coverprofile coverage.out ./... $(ARGS)
+	go tool cover -html coverage.out -o coverage.html

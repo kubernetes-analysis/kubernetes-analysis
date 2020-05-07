@@ -6,4 +6,5 @@ __pycache__/
 bin
 coverage.*
 data/data.pickle
+kubernetes-analysis
 plugin/plugin

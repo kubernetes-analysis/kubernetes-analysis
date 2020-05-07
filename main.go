@@ -17,7 +17,8 @@ import (
 	"k8s.io/test-infra/prow/pluginhelp/externalplugins"
 	"k8s.io/test-infra/prow/plugins"
 
-	plugin "github.com/kubernetes-analysis/kubernetes-analysis/plugin/pkg"
+	"github.com/kubernetes-analysis/kubernetes-analysis/pkg/plugin"
+	"github.com/kubernetes-analysis/kubernetes-analysis/pkg/server"
 )
 
 const (
@@ -116,7 +117,7 @@ func run() error {
 	githubClient.Throttle(360, 360)
 
 	log := logrus.StandardLogger().WithField("plugin", pluginName)
-	server := plugin.NewServer(
+	s := server.New(
 		secretAgent.GetTokenGenerator(o.webhookSecretFile),
 		githubClient,
 		log,
@@ -124,7 +125,7 @@ func run() error {
 	defer interrupts.WaitForGracefulShutdown()
 
 	mux := http.NewServeMux()
-	mux.Handle("/", server)
+	mux.Handle("/", s)
 	externalplugins.ServeExternalPluginHelp(mux, log, plugin.HelpProvider)
 	httpServer := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: mux}
 	interrupts.ListenAndServe(httpServer, 5*time.Second)

@@ -25,7 +25,7 @@ plugins:
 external_plugins:
   kubernetes-analysis:
     - name: refresh-remote
-      endpoint: https://prow-plugin.k8s.saschagrunert.de
+      endpoint: http://kubernetes-analysis
       events:
+        - issues
         - pull_request
-        - issue_comment

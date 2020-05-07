@@ -149,4 +149,4 @@ presubmits:
                 git apply ../pr.patch
                 git add .
                 git commit -m "Apply patch"
-                make -C plugin test
+                make go-test

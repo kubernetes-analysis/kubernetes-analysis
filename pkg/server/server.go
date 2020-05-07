@@ -1,4 +1,4 @@
-package plugin
+package server
 
 import (
 	"encoding/json"
@@ -7,6 +7,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/github"
+
+	"github.com/kubernetes-analysis/kubernetes-analysis/pkg/plugin"
 )
 
 // Server implements http.Handler. It validates incoming GitHub webhooks and
@@ -17,8 +19,8 @@ type Server struct {
 	log            *logrus.Entry
 }
 
-// NewServer creates a new server instance.
-func NewServer(
+// New creates a new server instance.
+func New(
 	tokenGenerator func() []byte, ghc github.Client, log *logrus.Entry,
 ) *Server {
 	return &Server{tokenGenerator, ghc, log}
@@ -47,7 +49,22 @@ func (s *Server) handleEvent(eventType, eventGUID string, payload []byte) error 
 		},
 	)
 
+	p := plugin.New(l, s.ghc)
+
 	switch eventType {
+	case "issues":
+		var ie github.IssueEvent
+		if err := json.Unmarshal(payload, &ie); err != nil {
+			return errors.Wrap(err, "unmarshalling issue comment")
+		}
+
+		go func() {
+			if err := p.HandleIssueEvent(&ie); err != nil {
+				l.WithField("event-type", eventType).
+					WithError(err).
+					Info("Unable to handle event")
+			}
+		}()
 	case "pull_request":
 		var pre github.PullRequestEvent
 		if err := json.Unmarshal(payload, &pre); err != nil {
@@ -55,23 +72,10 @@ func (s *Server) handleEvent(eventType, eventGUID string, payload []byte) error 
 		}
 
 		go func() {
-			if err := handlePullRequestEvent(l, s.ghc, &pre); err != nil {
+			if err := p.HandlePullRequestEvent(&pre); err != nil {
 				l.WithField("event-type", eventType).
 					WithError(err).
 					Error("Unable to handle event")
-			}
-		}()
-	case "issue_comment":
-		var ice github.IssueCommentEvent
-		if err := json.Unmarshal(payload, &ice); err != nil {
-			return errors.Wrap(err, "unmarshalling issue comment")
-		}
-
-		go func() {
-			if err := handleIssueComment(l, s.ghc, &ice); err != nil {
-				l.WithField("event-type", eventType).
-					WithError(err).
-					Info("Unable to handle event")
 			}
 		}()
 

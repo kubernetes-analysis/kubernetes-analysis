@@ -1,11 +1,11 @@
 # vim: set syntax=dockerfile:
 FROM golang:1.14-alpine as build
 RUN apk add --no-cache gcc libc-dev make
-COPY plugin /build
+COPY . /build
 WORKDIR /build
-RUN make
+RUN make go-build
 
 FROM alpine
 RUN apk add --no-cache ca-certificates
-COPY --from=build /build/plugin /main
+COPY --from=build /build/kubernetes-analysis /main
 ENTRYPOINT ["/main"]
