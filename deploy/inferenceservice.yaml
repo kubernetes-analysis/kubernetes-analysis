@@ -4,6 +4,8 @@ kind: InferenceService
 metadata:
   labels:
     controller-tools.k8s.io: "1.0"
+  annotations:
+    autoscaling.knative.dev/target: "2"
   name: kubernetes-analysis
   namespace: kfserving
 spec:

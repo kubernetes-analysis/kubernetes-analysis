@@ -1,6 +1,2 @@
 __pycache__
-assets
-bin
-ci
-data
-src
+.git
