@@ -9,17 +9,6 @@ import (
 )
 
 type FakePlugin struct {
-	HandleIssueCommentEventStub        func(*github.IssueCommentEvent) error
-	handleIssueCommentEventMutex       sync.RWMutex
-	handleIssueCommentEventArgsForCall []struct {
-		arg1 *github.IssueCommentEvent
-	}
-	handleIssueCommentEventReturns struct {
-		result1 error
-	}
-	handleIssueCommentEventReturnsOnCall map[int]struct {
-		result1 error
-	}
 	HandleIssueEventStub        func(*github.IssueEvent) error
 	handleIssueEventMutex       sync.RWMutex
 	handleIssueEventArgsForCall []struct {
@@ -54,66 +43,6 @@ type FakePlugin struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakePlugin) HandleIssueCommentEvent(arg1 *github.IssueCommentEvent) error {
-	fake.handleIssueCommentEventMutex.Lock()
-	ret, specificReturn := fake.handleIssueCommentEventReturnsOnCall[len(fake.handleIssueCommentEventArgsForCall)]
-	fake.handleIssueCommentEventArgsForCall = append(fake.handleIssueCommentEventArgsForCall, struct {
-		arg1 *github.IssueCommentEvent
-	}{arg1})
-	fake.recordInvocation("HandleIssueCommentEvent", []interface{}{arg1})
-	fake.handleIssueCommentEventMutex.Unlock()
-	if fake.HandleIssueCommentEventStub != nil {
-		return fake.HandleIssueCommentEventStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.handleIssueCommentEventReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakePlugin) HandleIssueCommentEventCallCount() int {
-	fake.handleIssueCommentEventMutex.RLock()
-	defer fake.handleIssueCommentEventMutex.RUnlock()
-	return len(fake.handleIssueCommentEventArgsForCall)
-}
-
-func (fake *FakePlugin) HandleIssueCommentEventCalls(stub func(*github.IssueCommentEvent) error) {
-	fake.handleIssueCommentEventMutex.Lock()
-	defer fake.handleIssueCommentEventMutex.Unlock()
-	fake.HandleIssueCommentEventStub = stub
-}
-
-func (fake *FakePlugin) HandleIssueCommentEventArgsForCall(i int) *github.IssueCommentEvent {
-	fake.handleIssueCommentEventMutex.RLock()
-	defer fake.handleIssueCommentEventMutex.RUnlock()
-	argsForCall := fake.handleIssueCommentEventArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *FakePlugin) HandleIssueCommentEventReturns(result1 error) {
-	fake.handleIssueCommentEventMutex.Lock()
-	defer fake.handleIssueCommentEventMutex.Unlock()
-	fake.HandleIssueCommentEventStub = nil
-	fake.handleIssueCommentEventReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakePlugin) HandleIssueCommentEventReturnsOnCall(i int, result1 error) {
-	fake.handleIssueCommentEventMutex.Lock()
-	defer fake.handleIssueCommentEventMutex.Unlock()
-	fake.HandleIssueCommentEventStub = nil
-	if fake.handleIssueCommentEventReturnsOnCall == nil {
-		fake.handleIssueCommentEventReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.handleIssueCommentEventReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
 }
 
 func (fake *FakePlugin) HandleIssueEvent(arg1 *github.IssueEvent) error {
@@ -301,8 +230,6 @@ func (fake *FakePlugin) SetPredictorArgsForCall(i int) plugin.Predictor {
 func (fake *FakePlugin) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.handleIssueCommentEventMutex.RLock()
-	defer fake.handleIssueCommentEventMutex.RUnlock()
 	fake.handleIssueEventMutex.RLock()
 	defer fake.handleIssueEventMutex.RUnlock()
 	fake.handlePullRequestEventMutex.RLock()

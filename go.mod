@@ -3,11 +3,10 @@ module github.com/kubernetes-analysis/kubernetes-analysis
 go 1.14
 
 require (
-	github.com/kubernetes-analysis/kubernetes-analysis/plugin v0.0.0-20200507175357-3f664caf3ede
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
-	k8s.io/release v0.3.0
+	k8s.io/release v0.3.1-0.20200508084750-b82e255bb1dd
 	k8s.io/test-infra v0.0.0-20200504223708-6c76e02fb720
 )
 

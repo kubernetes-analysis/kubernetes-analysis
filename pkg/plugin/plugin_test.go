@@ -101,8 +101,9 @@ func TestSuccessHandleIssueEventWrongAction(t *testing.T) {
 }
 
 func TestFailureHandleIssueEventPredict(t *testing.T) {
-	sut, predictor, _ := newSUT()
+	sut, predictor, client := newSUT()
 	predictor.PredictReturns(0, err)
+	client.CreateCommentReturns(err)
 
 	err := sut.HandleIssueEvent(&github.IssueEvent{
 		Action: github.IssueActionOpened,
@@ -144,13 +145,48 @@ func TestFailreHandleIssueEventCreateComment(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSuccessHandleIssueEventListIssueComments(t *testing.T) {
+func TestSuccessHandleIssueEventListIssueCommentsEdit(t *testing.T) {
 	sut, _, client := newSUT()
 	bot := github.User{Login: "bot"}
 	client.BotUserReturns(&bot, nil)
 	client.ListIssueCommentsReturns([]github.IssueComment{
 		{ID: 50, Body: plugin.CommentMarker, User: bot},
 	}, nil)
+
+	err := sut.HandleIssueEvent(&github.IssueEvent{
+		Action: github.IssueActionOpened,
+		Issue:  github.Issue{User: bot},
+	})
+
+	require.Nil(t, err)
+}
+
+func TestSuccessHandleIssueEventListIssueCommentsDelete(t *testing.T) {
+	sut, predictor, client := newSUT()
+	bot := github.User{Login: "bot"}
+	predictor.PredictReturns(plugin.PredctionResultExcluded, nil)
+	client.BotUserReturns(&bot, nil)
+	client.ListIssueCommentsReturns([]github.IssueComment{
+		{ID: 50, Body: plugin.CommentMarker, User: bot},
+	}, nil)
+
+	err := sut.HandleIssueEvent(&github.IssueEvent{
+		Action: github.IssueActionOpened,
+		Issue:  github.Issue{User: bot},
+	})
+
+	require.Nil(t, err)
+}
+
+func TestFailureHandleIssueEventListIssueCommentsDelete(t *testing.T) {
+	sut, predictor, client := newSUT()
+	bot := github.User{Login: "bot"}
+	predictor.PredictReturns(plugin.PredctionResultExcluded, nil)
+	client.BotUserReturns(&bot, nil)
+	client.ListIssueCommentsReturns([]github.IssueComment{
+		{ID: 50, Body: plugin.CommentMarker, User: bot},
+	}, nil)
+	client.DeleteCommentReturns(err)
 
 	err := sut.HandleIssueEvent(&github.IssueEvent{
 		Action: github.IssueActionOpened,
@@ -209,6 +245,7 @@ func TestFailureHandleIssueEventRemoveLabel(t *testing.T) {
 		{Name: plugin.KindBugLabel},
 	}, nil)
 	client.RemoveLabelReturns(err)
+	client.CreateCommentReturns(err)
 
 	err := sut.HandleIssueEvent(&github.IssueEvent{
 		Action: github.IssueActionOpened,
@@ -221,6 +258,7 @@ func TestFailureHandleIssueEventAddLabel(t *testing.T) {
 	sut, predictor, client := newSUT()
 	predictor.PredictReturns(plugin.TruePrediction+0.1, nil)
 	client.AddLabelReturns(err)
+	client.CreateCommentReturns(err)
 
 	err := sut.HandleIssueEvent(&github.IssueEvent{
 		Action: github.IssueActionOpened,
@@ -233,12 +271,25 @@ func TestFailureHandleIssueEventGetIssueLabels(t *testing.T) {
 	sut, predictor, client := newSUT()
 	predictor.PredictReturns(plugin.TruePrediction+0.1, nil)
 	client.GetIssueLabelsReturns(nil, err)
+	client.CreateCommentReturns(err)
 
 	err := sut.HandleIssueEvent(&github.IssueEvent{
 		Action: github.IssueActionOpened,
 	})
 
 	require.NotNil(t, err)
+}
+
+func TestSuccessHandleIssueEventGetIssueLabels(t *testing.T) {
+	sut, predictor, client := newSUT()
+	predictor.PredictReturns(plugin.TruePrediction+0.1, nil)
+	client.GetIssueLabelsReturns(nil, err)
+
+	err := sut.HandleIssueEvent(&github.IssueEvent{
+		Action: github.IssueActionOpened,
+	})
+
+	require.Nil(t, err)
 }
 
 func TestPredictSuccess(t *testing.T) {
@@ -285,17 +336,17 @@ func TestPredictFailureResultNoBody(t *testing.T) {
 	require.Zero(t, res)
 }
 
-func TestPredictFailureNotNote(t *testing.T) {
+func TestPredictSuccessNotNote(t *testing.T) {
 	res, err := plugin.NewPredictor(log()).Predict("", "wrong")
-	require.NotNil(t, err)
-	require.Zero(t, res)
+	require.Nil(t, err)
+	require.Equal(t, plugin.PredctionResultExcluded, res)
 }
 
-func TestPredictFailureExcluded(t *testing.T) {
+func TestPredictSuccessExcluded(t *testing.T) {
 	releaseNote := "```release-note\nNone\n```"
 
 	res, err := plugin.NewPredictor(log()).Predict("", releaseNote)
 
-	require.NotNil(t, err)
-	require.Zero(t, res)
+	require.Nil(t, err)
+	require.Equal(t, plugin.PredctionResultExcluded, res)
 }

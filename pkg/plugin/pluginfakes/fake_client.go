@@ -9,13 +9,11 @@ import (
 )
 
 type FakeClient struct {
-	AddLabelStub        func(string, string, int, string) error
+	AddLabelStub        func(int, string) error
 	addLabelMutex       sync.RWMutex
 	addLabelArgsForCall []struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
 	}
 	addLabelReturns struct {
 		result1 error
@@ -35,13 +33,11 @@ type FakeClient struct {
 		result1 *github.User
 		result2 error
 	}
-	CreateCommentStub        func(string, string, int, string) error
+	CreateCommentStub        func(int, string) error
 	createCommentMutex       sync.RWMutex
 	createCommentArgsForCall []struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
 	}
 	createCommentReturns struct {
 		result1 error
@@ -49,13 +45,22 @@ type FakeClient struct {
 	createCommentReturnsOnCall map[int]struct {
 		result1 error
 	}
-	EditCommentStub        func(string, string, int, string) error
+	DeleteCommentStub        func(int) error
+	deleteCommentMutex       sync.RWMutex
+	deleteCommentArgsForCall []struct {
+		arg1 int
+	}
+	deleteCommentReturns struct {
+		result1 error
+	}
+	deleteCommentReturnsOnCall map[int]struct {
+		result1 error
+	}
+	EditCommentStub        func(int, string) error
 	editCommentMutex       sync.RWMutex
 	editCommentArgsForCall []struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
 	}
 	editCommentReturns struct {
 		result1 error
@@ -63,12 +68,10 @@ type FakeClient struct {
 	editCommentReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetIssueLabelsStub        func(string, string, int) ([]github.Label, error)
+	GetIssueLabelsStub        func(int) ([]github.Label, error)
 	getIssueLabelsMutex       sync.RWMutex
 	getIssueLabelsArgsForCall []struct {
-		arg1 string
-		arg2 string
-		arg3 int
+		arg1 int
 	}
 	getIssueLabelsReturns struct {
 		result1 []github.Label
@@ -78,12 +81,10 @@ type FakeClient struct {
 		result1 []github.Label
 		result2 error
 	}
-	ListIssueCommentsStub        func(string, string, int) ([]github.IssueComment, error)
+	ListIssueCommentsStub        func(int) ([]github.IssueComment, error)
 	listIssueCommentsMutex       sync.RWMutex
 	listIssueCommentsArgsForCall []struct {
-		arg1 string
-		arg2 string
-		arg3 int
+		arg1 int
 	}
 	listIssueCommentsReturns struct {
 		result1 []github.IssueComment
@@ -93,13 +94,11 @@ type FakeClient struct {
 		result1 []github.IssueComment
 		result2 error
 	}
-	RemoveLabelStub        func(string, string, int, string) error
+	RemoveLabelStub        func(int, string) error
 	removeLabelMutex       sync.RWMutex
 	removeLabelArgsForCall []struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
 	}
 	removeLabelReturns struct {
 		result1 error
@@ -111,19 +110,17 @@ type FakeClient struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeClient) AddLabel(arg1 string, arg2 string, arg3 int, arg4 string) error {
+func (fake *FakeClient) AddLabel(arg1 int, arg2 string) error {
 	fake.addLabelMutex.Lock()
 	ret, specificReturn := fake.addLabelReturnsOnCall[len(fake.addLabelArgsForCall)]
 	fake.addLabelArgsForCall = append(fake.addLabelArgsForCall, struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("AddLabel", []interface{}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2})
+	fake.recordInvocation("AddLabel", []interface{}{arg1, arg2})
 	fake.addLabelMutex.Unlock()
 	if fake.AddLabelStub != nil {
-		return fake.AddLabelStub(arg1, arg2, arg3, arg4)
+		return fake.AddLabelStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -138,17 +135,17 @@ func (fake *FakeClient) AddLabelCallCount() int {
 	return len(fake.addLabelArgsForCall)
 }
 
-func (fake *FakeClient) AddLabelCalls(stub func(string, string, int, string) error) {
+func (fake *FakeClient) AddLabelCalls(stub func(int, string) error) {
 	fake.addLabelMutex.Lock()
 	defer fake.addLabelMutex.Unlock()
 	fake.AddLabelStub = stub
 }
 
-func (fake *FakeClient) AddLabelArgsForCall(i int) (string, string, int, string) {
+func (fake *FakeClient) AddLabelArgsForCall(i int) (int, string) {
 	fake.addLabelMutex.RLock()
 	defer fake.addLabelMutex.RUnlock()
 	argsForCall := fake.addLabelArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) AddLabelReturns(result1 error) {
@@ -229,19 +226,17 @@ func (fake *FakeClient) BotUserReturnsOnCall(i int, result1 *github.User, result
 	}{result1, result2}
 }
 
-func (fake *FakeClient) CreateComment(arg1 string, arg2 string, arg3 int, arg4 string) error {
+func (fake *FakeClient) CreateComment(arg1 int, arg2 string) error {
 	fake.createCommentMutex.Lock()
 	ret, specificReturn := fake.createCommentReturnsOnCall[len(fake.createCommentArgsForCall)]
 	fake.createCommentArgsForCall = append(fake.createCommentArgsForCall, struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("CreateComment", []interface{}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2})
+	fake.recordInvocation("CreateComment", []interface{}{arg1, arg2})
 	fake.createCommentMutex.Unlock()
 	if fake.CreateCommentStub != nil {
-		return fake.CreateCommentStub(arg1, arg2, arg3, arg4)
+		return fake.CreateCommentStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -256,17 +251,17 @@ func (fake *FakeClient) CreateCommentCallCount() int {
 	return len(fake.createCommentArgsForCall)
 }
 
-func (fake *FakeClient) CreateCommentCalls(stub func(string, string, int, string) error) {
+func (fake *FakeClient) CreateCommentCalls(stub func(int, string) error) {
 	fake.createCommentMutex.Lock()
 	defer fake.createCommentMutex.Unlock()
 	fake.CreateCommentStub = stub
 }
 
-func (fake *FakeClient) CreateCommentArgsForCall(i int) (string, string, int, string) {
+func (fake *FakeClient) CreateCommentArgsForCall(i int) (int, string) {
 	fake.createCommentMutex.RLock()
 	defer fake.createCommentMutex.RUnlock()
 	argsForCall := fake.createCommentArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) CreateCommentReturns(result1 error) {
@@ -292,19 +287,77 @@ func (fake *FakeClient) CreateCommentReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeClient) EditComment(arg1 string, arg2 string, arg3 int, arg4 string) error {
+func (fake *FakeClient) DeleteComment(arg1 int) error {
+	fake.deleteCommentMutex.Lock()
+	ret, specificReturn := fake.deleteCommentReturnsOnCall[len(fake.deleteCommentArgsForCall)]
+	fake.deleteCommentArgsForCall = append(fake.deleteCommentArgsForCall, struct {
+		arg1 int
+	}{arg1})
+	fake.recordInvocation("DeleteComment", []interface{}{arg1})
+	fake.deleteCommentMutex.Unlock()
+	if fake.DeleteCommentStub != nil {
+		return fake.DeleteCommentStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.deleteCommentReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeClient) DeleteCommentCallCount() int {
+	fake.deleteCommentMutex.RLock()
+	defer fake.deleteCommentMutex.RUnlock()
+	return len(fake.deleteCommentArgsForCall)
+}
+
+func (fake *FakeClient) DeleteCommentCalls(stub func(int) error) {
+	fake.deleteCommentMutex.Lock()
+	defer fake.deleteCommentMutex.Unlock()
+	fake.DeleteCommentStub = stub
+}
+
+func (fake *FakeClient) DeleteCommentArgsForCall(i int) int {
+	fake.deleteCommentMutex.RLock()
+	defer fake.deleteCommentMutex.RUnlock()
+	argsForCall := fake.deleteCommentArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeClient) DeleteCommentReturns(result1 error) {
+	fake.deleteCommentMutex.Lock()
+	defer fake.deleteCommentMutex.Unlock()
+	fake.DeleteCommentStub = nil
+	fake.deleteCommentReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeClient) DeleteCommentReturnsOnCall(i int, result1 error) {
+	fake.deleteCommentMutex.Lock()
+	defer fake.deleteCommentMutex.Unlock()
+	fake.DeleteCommentStub = nil
+	if fake.deleteCommentReturnsOnCall == nil {
+		fake.deleteCommentReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteCommentReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeClient) EditComment(arg1 int, arg2 string) error {
 	fake.editCommentMutex.Lock()
 	ret, specificReturn := fake.editCommentReturnsOnCall[len(fake.editCommentArgsForCall)]
 	fake.editCommentArgsForCall = append(fake.editCommentArgsForCall, struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("EditComment", []interface{}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2})
+	fake.recordInvocation("EditComment", []interface{}{arg1, arg2})
 	fake.editCommentMutex.Unlock()
 	if fake.EditCommentStub != nil {
-		return fake.EditCommentStub(arg1, arg2, arg3, arg4)
+		return fake.EditCommentStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -319,17 +372,17 @@ func (fake *FakeClient) EditCommentCallCount() int {
 	return len(fake.editCommentArgsForCall)
 }
 
-func (fake *FakeClient) EditCommentCalls(stub func(string, string, int, string) error) {
+func (fake *FakeClient) EditCommentCalls(stub func(int, string) error) {
 	fake.editCommentMutex.Lock()
 	defer fake.editCommentMutex.Unlock()
 	fake.EditCommentStub = stub
 }
 
-func (fake *FakeClient) EditCommentArgsForCall(i int) (string, string, int, string) {
+func (fake *FakeClient) EditCommentArgsForCall(i int) (int, string) {
 	fake.editCommentMutex.RLock()
 	defer fake.editCommentMutex.RUnlock()
 	argsForCall := fake.editCommentArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) EditCommentReturns(result1 error) {
@@ -355,18 +408,16 @@ func (fake *FakeClient) EditCommentReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeClient) GetIssueLabels(arg1 string, arg2 string, arg3 int) ([]github.Label, error) {
+func (fake *FakeClient) GetIssueLabels(arg1 int) ([]github.Label, error) {
 	fake.getIssueLabelsMutex.Lock()
 	ret, specificReturn := fake.getIssueLabelsReturnsOnCall[len(fake.getIssueLabelsArgsForCall)]
 	fake.getIssueLabelsArgsForCall = append(fake.getIssueLabelsArgsForCall, struct {
-		arg1 string
-		arg2 string
-		arg3 int
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("GetIssueLabels", []interface{}{arg1, arg2, arg3})
+		arg1 int
+	}{arg1})
+	fake.recordInvocation("GetIssueLabels", []interface{}{arg1})
 	fake.getIssueLabelsMutex.Unlock()
 	if fake.GetIssueLabelsStub != nil {
-		return fake.GetIssueLabelsStub(arg1, arg2, arg3)
+		return fake.GetIssueLabelsStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -381,17 +432,17 @@ func (fake *FakeClient) GetIssueLabelsCallCount() int {
 	return len(fake.getIssueLabelsArgsForCall)
 }
 
-func (fake *FakeClient) GetIssueLabelsCalls(stub func(string, string, int) ([]github.Label, error)) {
+func (fake *FakeClient) GetIssueLabelsCalls(stub func(int) ([]github.Label, error)) {
 	fake.getIssueLabelsMutex.Lock()
 	defer fake.getIssueLabelsMutex.Unlock()
 	fake.GetIssueLabelsStub = stub
 }
 
-func (fake *FakeClient) GetIssueLabelsArgsForCall(i int) (string, string, int) {
+func (fake *FakeClient) GetIssueLabelsArgsForCall(i int) int {
 	fake.getIssueLabelsMutex.RLock()
 	defer fake.getIssueLabelsMutex.RUnlock()
 	argsForCall := fake.getIssueLabelsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1
 }
 
 func (fake *FakeClient) GetIssueLabelsReturns(result1 []github.Label, result2 error) {
@@ -420,18 +471,16 @@ func (fake *FakeClient) GetIssueLabelsReturnsOnCall(i int, result1 []github.Labe
 	}{result1, result2}
 }
 
-func (fake *FakeClient) ListIssueComments(arg1 string, arg2 string, arg3 int) ([]github.IssueComment, error) {
+func (fake *FakeClient) ListIssueComments(arg1 int) ([]github.IssueComment, error) {
 	fake.listIssueCommentsMutex.Lock()
 	ret, specificReturn := fake.listIssueCommentsReturnsOnCall[len(fake.listIssueCommentsArgsForCall)]
 	fake.listIssueCommentsArgsForCall = append(fake.listIssueCommentsArgsForCall, struct {
-		arg1 string
-		arg2 string
-		arg3 int
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("ListIssueComments", []interface{}{arg1, arg2, arg3})
+		arg1 int
+	}{arg1})
+	fake.recordInvocation("ListIssueComments", []interface{}{arg1})
 	fake.listIssueCommentsMutex.Unlock()
 	if fake.ListIssueCommentsStub != nil {
-		return fake.ListIssueCommentsStub(arg1, arg2, arg3)
+		return fake.ListIssueCommentsStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -446,17 +495,17 @@ func (fake *FakeClient) ListIssueCommentsCallCount() int {
 	return len(fake.listIssueCommentsArgsForCall)
 }
 
-func (fake *FakeClient) ListIssueCommentsCalls(stub func(string, string, int) ([]github.IssueComment, error)) {
+func (fake *FakeClient) ListIssueCommentsCalls(stub func(int) ([]github.IssueComment, error)) {
 	fake.listIssueCommentsMutex.Lock()
 	defer fake.listIssueCommentsMutex.Unlock()
 	fake.ListIssueCommentsStub = stub
 }
 
-func (fake *FakeClient) ListIssueCommentsArgsForCall(i int) (string, string, int) {
+func (fake *FakeClient) ListIssueCommentsArgsForCall(i int) int {
 	fake.listIssueCommentsMutex.RLock()
 	defer fake.listIssueCommentsMutex.RUnlock()
 	argsForCall := fake.listIssueCommentsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1
 }
 
 func (fake *FakeClient) ListIssueCommentsReturns(result1 []github.IssueComment, result2 error) {
@@ -485,19 +534,17 @@ func (fake *FakeClient) ListIssueCommentsReturnsOnCall(i int, result1 []github.I
 	}{result1, result2}
 }
 
-func (fake *FakeClient) RemoveLabel(arg1 string, arg2 string, arg3 int, arg4 string) error {
+func (fake *FakeClient) RemoveLabel(arg1 int, arg2 string) error {
 	fake.removeLabelMutex.Lock()
 	ret, specificReturn := fake.removeLabelReturnsOnCall[len(fake.removeLabelArgsForCall)]
 	fake.removeLabelArgsForCall = append(fake.removeLabelArgsForCall, struct {
-		arg1 string
+		arg1 int
 		arg2 string
-		arg3 int
-		arg4 string
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("RemoveLabel", []interface{}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2})
+	fake.recordInvocation("RemoveLabel", []interface{}{arg1, arg2})
 	fake.removeLabelMutex.Unlock()
 	if fake.RemoveLabelStub != nil {
-		return fake.RemoveLabelStub(arg1, arg2, arg3, arg4)
+		return fake.RemoveLabelStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -512,17 +559,17 @@ func (fake *FakeClient) RemoveLabelCallCount() int {
 	return len(fake.removeLabelArgsForCall)
 }
 
-func (fake *FakeClient) RemoveLabelCalls(stub func(string, string, int, string) error) {
+func (fake *FakeClient) RemoveLabelCalls(stub func(int, string) error) {
 	fake.removeLabelMutex.Lock()
 	defer fake.removeLabelMutex.Unlock()
 	fake.RemoveLabelStub = stub
 }
 
-func (fake *FakeClient) RemoveLabelArgsForCall(i int) (string, string, int, string) {
+func (fake *FakeClient) RemoveLabelArgsForCall(i int) (int, string) {
 	fake.removeLabelMutex.RLock()
 	defer fake.removeLabelMutex.RUnlock()
 	argsForCall := fake.removeLabelArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) RemoveLabelReturns(result1 error) {
@@ -557,6 +604,8 @@ func (fake *FakeClient) Invocations() map[string][][]interface{} {
 	defer fake.botUserMutex.RUnlock()
 	fake.createCommentMutex.RLock()
 	defer fake.createCommentMutex.RUnlock()
+	fake.deleteCommentMutex.RLock()
+	defer fake.deleteCommentMutex.RUnlock()
 	fake.editCommentMutex.RLock()
 	defer fake.editCommentMutex.RUnlock()
 	fake.getIssueLabelsMutex.RLock()

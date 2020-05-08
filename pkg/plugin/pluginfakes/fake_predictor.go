@@ -8,25 +8,25 @@ import (
 )
 
 type FakePredictor struct {
-	PredictStub        func(string, string) (float64, error)
+	PredictStub        func(string, string) (plugin.PredictionResult, error)
 	predictMutex       sync.RWMutex
 	predictArgsForCall []struct {
 		arg1 string
 		arg2 string
 	}
 	predictReturns struct {
-		result1 float64
+		result1 plugin.PredictionResult
 		result2 error
 	}
 	predictReturnsOnCall map[int]struct {
-		result1 float64
+		result1 plugin.PredictionResult
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakePredictor) Predict(arg1 string, arg2 string) (float64, error) {
+func (fake *FakePredictor) Predict(arg1 string, arg2 string) (plugin.PredictionResult, error) {
 	fake.predictMutex.Lock()
 	ret, specificReturn := fake.predictReturnsOnCall[len(fake.predictArgsForCall)]
 	fake.predictArgsForCall = append(fake.predictArgsForCall, struct {
@@ -51,7 +51,7 @@ func (fake *FakePredictor) PredictCallCount() int {
 	return len(fake.predictArgsForCall)
 }
 
-func (fake *FakePredictor) PredictCalls(stub func(string, string) (float64, error)) {
+func (fake *FakePredictor) PredictCalls(stub func(string, string) (plugin.PredictionResult, error)) {
 	fake.predictMutex.Lock()
 	defer fake.predictMutex.Unlock()
 	fake.PredictStub = stub
@@ -64,28 +64,28 @@ func (fake *FakePredictor) PredictArgsForCall(i int) (string, string) {
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakePredictor) PredictReturns(result1 float64, result2 error) {
+func (fake *FakePredictor) PredictReturns(result1 plugin.PredictionResult, result2 error) {
 	fake.predictMutex.Lock()
 	defer fake.predictMutex.Unlock()
 	fake.PredictStub = nil
 	fake.predictReturns = struct {
-		result1 float64
+		result1 plugin.PredictionResult
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakePredictor) PredictReturnsOnCall(i int, result1 float64, result2 error) {
+func (fake *FakePredictor) PredictReturnsOnCall(i int, result1 plugin.PredictionResult, result2 error) {
 	fake.predictMutex.Lock()
 	defer fake.predictMutex.Unlock()
 	fake.PredictStub = nil
 	if fake.predictReturnsOnCall == nil {
 		fake.predictReturnsOnCall = make(map[int]struct {
-			result1 float64
+			result1 plugin.PredictionResult
 			result2 error
 		})
 	}
 	fake.predictReturnsOnCall[i] = struct {
-		result1 float64
+		result1 plugin.PredictionResult
 		result2 error
 	}{result1, result2}
 }

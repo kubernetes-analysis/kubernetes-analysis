@@ -8,6 +8,7 @@ linters:
     # - goerr113
     # - gomnd
     # - gosec
+    # - nestif
     # - wsl
     - asciicheck
     - bodyclose
@@ -38,7 +39,6 @@ linters:
     - maligned
     - misspell
     - nakedret
-    - nestif
     - nolintlint
     - prealloc
     - rowserrcheck

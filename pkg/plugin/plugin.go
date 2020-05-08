@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -17,10 +16,13 @@ import (
 	"k8s.io/test-infra/prow/pluginhelp"
 )
 
+type PredictionResult float64
+
 const (
-	CommentMarker  = "<!-- RELNOTE_PREDICTION -->"
-	KindBugLabel   = "kind/bug"
-	TruePrediction = 0.6
+	CommentMarker                            = "<!-- RELNOTE_PREDICTION -->"
+	KindBugLabel                             = "kind/bug"
+	TruePrediction          PredictionResult = 0.6
+	PredctionResultExcluded PredictionResult = -1.0
 
 	predictionURL = "https://kfserving.k8s.saschagrunert.de/v1/models/kubernetes-analysis:predict"
 	repoOrg       = "kubernetes-analysis"
@@ -62,7 +64,7 @@ func NewPredictor(log *logrus.Entry) Predictor {
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 //counterfeiter:generate . Predictor
 type Predictor interface {
-	Predict(url, input string) (float64, error)
+	Predict(url, input string) (PredictionResult, error)
 }
 
 type client struct {
@@ -72,51 +74,46 @@ type client struct {
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 //counterfeiter:generate . Client
 type Client interface {
-	AddLabel(org, repo string, number int, label string) error
+	AddLabel(number int, label string) error
 	BotUser() (*github.User, error)
-	CreateComment(org, repo string, number int, comment string) error
-	EditComment(org, repo string, id int, comment string) error
-	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
-	ListIssueComments(org, repo string, nr int) ([]github.IssueComment, error)
-	RemoveLabel(org, repo string, number int, label string) error
+	CreateComment(number int, comment string) error
+	DeleteComment(number int) error
+	EditComment(id int, comment string) error
+	GetIssueLabels(number int) ([]github.Label, error)
+	ListIssueComments(number int) ([]github.IssueComment, error)
+	RemoveLabel(number int, label string) error
 }
 
-func (c *client) AddLabel(org, repo string, number int, label string) error {
-	return c.ghc.AddLabel(org, repo, number, label)
+func (c *client) AddLabel(number int, label string) error {
+	return c.ghc.AddLabel(repoOrg, repoOrg, number, label)
 }
 
 func (c *client) BotUser() (*github.User, error) {
 	return c.ghc.BotUser()
 }
 
-func (c *client) CreateComment(
-	org, repo string, number int, comment string,
-) error {
-	return c.ghc.CreateComment(org, repo, number, comment)
+func (c *client) CreateComment(number int, comment string) error {
+	return c.ghc.CreateComment(repoOrg, repoOrg, number, comment)
 }
 
-func (c *client) EditComment(
-	org, repo string, id int, comment string,
-) error {
-	return c.ghc.EditComment(org, repo, id, comment)
+func (c *client) DeleteComment(number int) error {
+	return c.ghc.DeleteComment(repoOrg, repoOrg, number)
 }
 
-func (c *client) GetIssueLabels(
-	org, repo string, number int,
-) ([]github.Label, error) {
-	return c.ghc.GetIssueLabels(org, repo, number)
+func (c *client) EditComment(id int, comment string) error {
+	return c.ghc.EditComment(repoOrg, repoOrg, id, comment)
 }
 
-func (c *client) ListIssueComments(
-	org, repo string, number int,
-) ([]github.IssueComment, error) {
-	return c.ghc.ListIssueComments(org, repo, number)
+func (c *client) GetIssueLabels(number int) ([]github.Label, error) {
+	return c.ghc.GetIssueLabels(repoOrg, repoOrg, number)
 }
 
-func (c *client) RemoveLabel(
-	org, repo string, number int, label string,
-) error {
-	return c.ghc.RemoveLabel(org, repo, number, label)
+func (c *client) ListIssueComments(number int) ([]github.IssueComment, error) {
+	return c.ghc.ListIssueComments(repoOrg, repoOrg, number)
+}
+
+func (c *client) RemoveLabel(number int, label string) error {
+	return c.ghc.RemoveLabel(repoOrg, repoOrg, number, label)
 }
 
 // HelpProvider constructs the PluginHelp for this plugin that takes into
@@ -147,7 +144,8 @@ func (p *plugin) HandleIssueEvent(ie *github.IssueEvent) error {
 
 	issue := ie.Issue
 	p.log.Debugf("Got issue: %+v", issue)
-	return p.handle(issue.User.Login, issue.Number, issue.Body)
+
+	return p.catchHandle(issue.User.Login, issue.Number, issue.Body)
 }
 
 func (p *plugin) HandlePullRequestEvent(pre *github.PullRequestEvent) error {
@@ -166,7 +164,20 @@ func (p *plugin) HandlePullRequestEvent(pre *github.PullRequestEvent) error {
 		return nil
 	}
 
-	return p.handle(pr.User.Login, pr.Number, pr.Body)
+	return p.catchHandle(pr.User.Login, pr.Number, pr.Body)
+}
+
+func (p *plugin) catchHandle(login string, number int, body string) error {
+	if err := p.handle(login, number, body); err != nil {
+		p.log.Warn("Something bad happened, trying to comment that")
+		if cerr := p.comment(
+			number, 0,
+			fmt.Sprintf("Unable to run prediction plugin:**\n%v", err),
+		); cerr != nil {
+			return errors.Wrap(err, "notifying user about error")
+		}
+	}
+	return nil
 }
 
 func (p *plugin) handle(
@@ -181,23 +192,24 @@ func (p *plugin) handle(
 		return errors.Wrap(err, "predicting release note")
 	}
 
-	txt, err := p.handleLabel(number, prediction)
+	additionalText, err := p.label(number, prediction)
 	if err != nil {
 		return errors.Wrap(err, "label handling")
 	}
 
-	if err := p.handleComment(userLogin, number, prediction, txt); err != nil {
+	message := predictionMessage(userLogin, prediction, additionalText)
+	if err := p.comment(number, prediction, message); err != nil {
 		return errors.Wrap(err, "comment handling")
 	}
 
 	return nil
 }
 
-func (p *plugin) handleLabel(
-	prNumber int, prediction float64,
+func (p *plugin) label(
+	prNumber int, prediction PredictionResult,
 ) (txt string, err error) {
 	p.log.Info("Getting PR labels")
-	labels, err := p.client.GetIssueLabels(repoOrg, repoOrg, prNumber)
+	labels, err := p.client.GetIssueLabels(prNumber)
 	if err != nil {
 		return "", errors.Wrap(err, "getting PR labels")
 	}
@@ -205,17 +217,13 @@ func (p *plugin) handleLabel(
 
 	if prediction >= TruePrediction && !hasLabel {
 		p.log.Info("Adding the label")
-		if err := p.client.AddLabel(
-			repoOrg, repoOrg, prNumber, KindBugLabel,
-		); err != nil {
+		if err := p.client.AddLabel(prNumber, KindBugLabel); err != nil {
 			return "", errors.Wrapf(err, "adding %q label", KindBugLabel)
 		}
 		txt = "I added the label for you."
 	} else if prediction < TruePrediction && hasLabel {
 		p.log.Info("Removing the label")
-		if err := p.client.RemoveLabel(
-			repoOrg, repoOrg, prNumber, KindBugLabel,
-		); err != nil {
+		if err := p.client.RemoveLabel(prNumber, KindBugLabel); err != nil {
 			return "", errors.Wrapf(err, "removing %q label", KindBugLabel)
 		}
 		txt = "I removed the label for you."
@@ -223,11 +231,10 @@ func (p *plugin) handleLabel(
 	return txt, nil
 }
 
-func (p *plugin) handleComment(
-	userLogin string,
+func (p *plugin) comment(
 	number int,
-	prediction float64,
-	txt string,
+	prediction PredictionResult,
+	message string,
 ) error {
 	// Handle the comments
 	bot, err := p.client.BotUser()
@@ -235,7 +242,7 @@ func (p *plugin) handleComment(
 		return errors.Wrap(err, "getting bot user")
 	}
 
-	comments, err := p.client.ListIssueComments(repoOrg, repoOrg, number)
+	comments, err := p.client.ListIssueComments(number)
 	if err != nil {
 		return errors.Wrap(err, "listing comments for PR or issue")
 	}
@@ -250,41 +257,49 @@ func (p *plugin) handleComment(
 		}
 	}
 
-	comment := fmt.Sprintf(`Hey @%s :wave:,
-
-I predicted that this release note qualifies as **kind/bug** to **%.2f%%**.
-
-A release note with the kind/bug needs a prediction rate with at least %.0f%%.
-
-%s
-%s`, userLogin, prediction*100, TruePrediction*100, txt, CommentMarker)
+	comment := fmt.Sprintf("%s\n%s", message, CommentMarker)
 
 	if existingComment > 0 {
+		if prediction == PredctionResultExcluded {
+			p.log.Info("Removing existing comment")
+			if err := p.client.DeleteComment(existingComment); err != nil {
+				return errors.Wrap(err, "deleting comment")
+			}
+			return nil
+		}
+
 		p.log.Info("Editing existing comment")
 
-		if err := p.client.EditComment(
-			repoOrg, repoOrg, existingComment, comment,
-		); err != nil {
-			return errors.Wrap(err, "editing PR comment")
+		if err := p.client.EditComment(existingComment, comment); err != nil {
+			return errors.Wrap(err, "editing comment")
 		}
-	} else {
+	} else if prediction != PredctionResultExcluded {
 		p.log.Info("Creating new comment")
 
-		if err := p.client.CreateComment(
-			repoOrg, repoOrg, number, comment,
-		); err != nil {
-			return errors.Wrap(err, "creating PR comment")
+		if err := p.client.CreateComment(number, comment); err != nil {
+			return errors.Wrap(err, "creating comment")
 		}
 	}
 
 	return nil
 }
 
-func (p *predictor) Predict(url, input string) (float64, error) {
-	if regexp.MustCompile(
-		"(?i)```(release-note[s]?\\s*)?('|\")?(none|n/a|na)?('|\")?\\s*```",
-	).MatchString(input) {
-		return 0, errors.New("excluded release note")
+func predictionMessage(
+	user string, prediction PredictionResult, additionalText string,
+) string {
+	return fmt.Sprintf(`Hey @%s :wave:,
+
+I predicted that this release note qualifies as **%s** to **%.2f%%**.
+
+A release note with the kind/bug needs a prediction rate with at least %.0f%%.
+
+%s`,
+		user, KindBugLabel, prediction*100, TruePrediction*100, additionalText)
+}
+
+func (p *predictor) Predict(url, input string) (PredictionResult, error) {
+	if notes.MatchesExcludeFilter(input) || !notes.MatchesIncludeFilter(input) {
+		return PredctionResultExcluded, nil
 	}
 
 	note, err := notes.NoteTextFromString(input)
@@ -335,5 +350,5 @@ func (p *predictor) Predict(url, input string) (float64, error) {
 		)
 	}
 	p.log.Infof("Got prediction result: %f", result)
-	return result, nil
+	return PredictionResult(result), nil
 }
