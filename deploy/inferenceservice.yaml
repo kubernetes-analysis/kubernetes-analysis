@@ -11,6 +11,7 @@ metadata:
 spec:
   default:
     predictor:
+      minReplicas: 1
       custom:
         container:
           image: quay.io/saschagrunert/kubernetes-analysis-kfserving:latest
