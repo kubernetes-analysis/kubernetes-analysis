@@ -83,6 +83,11 @@ update-plugin:
 	buildah bud -f Dockerfile-plugin -t $$IMAGE && \
 	buildah push $$IMAGE
 	kubectl apply -f deploy/plugin.yaml
+	kubectl -n default delete pod \
+		$(shell kubectl -n default get pods \
+			-l app=kubernetes-analysis \
+			--no-headers \
+			-o custom-columns=":metadata.name")
 
 .PHONY: go-build
 go-build:

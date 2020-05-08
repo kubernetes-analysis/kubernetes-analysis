@@ -5,11 +5,6 @@ run:
 linters:
   disable-all: true
   enable:
-    # - goerr113
-    # - gomnd
-    # - gosec
-    # - nestif
-    # - wsl
     - asciicheck
     - bodyclose
     - deadcode
@@ -26,11 +21,13 @@ linters:
     - gocyclo
     - godot
     - godox
+    - goerr113
     - gofmt
     - goimports
     - golint
     - gomodguard
     - goprintffuncname
+    - gosec
     - gosimple
     - govet
     - ineffassign
@@ -39,6 +36,7 @@ linters:
     - maligned
     - misspell
     - nakedret
+    - nestif
     - nolintlint
     - prealloc
     - rowserrcheck
@@ -53,7 +51,13 @@ linters:
     - unused
     - varcheck
     - whitespace
+    # - gomnd
+    # - wsl
 linters-settings:
+  funlen:
+    lines: 100
+  nestif:
+    min-complexity: 10
   gocritic:
     enabled-checks:
       # Diagnostic

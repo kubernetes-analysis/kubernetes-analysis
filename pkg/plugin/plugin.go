@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,9 @@ const (
 	TruePrediction          PredictionResult = 0.6
 	PredctionResultExcluded PredictionResult = -1.0
 
-	predictionURL = "https://kfserving.k8s.saschagrunert.de/v1/models/kubernetes-analysis:predict"
+	predictionURL = "http://kfserving-ingressgateway.istio-system" + urlPath
+	urlPath       = "/v1/models/kubernetes-analysis:predict"
+	urlHost       = "kubernetes-analysis.kfserving.example.com"
 	repoOrg       = "kubernetes-analysis"
 )
 
@@ -315,9 +318,18 @@ func (p *predictor) Predict(url, input string) (PredictionResult, error) {
 	}
 
 	p.log.Infof("Doing prediction request")
-	resp, err := http.Post(
-		url, "application/json", bytes.NewBuffer(requestBody),
-	)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return 0, errors.Wrap(err, "creating POST request")
+	}
+	req.Host = urlHost
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, errors.Wrap(err, "doing HTTP request")
+	}
+
 	if resp.StatusCode != 200 {
 		return 0, errors.Errorf("HTTP status: %s", resp.Status)
 	}
