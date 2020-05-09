@@ -332,27 +332,27 @@ class Data():
         with tarfile.open(Data.TARBALL, "w:xz") as tar:
             tar.add(Data.PATH, Data.FILE)
 
-    def release_notes_stats(self):
+    def release_notes_stats(self) -> Series:
         prs = list(
             filter(lambda x: x.release_note, self.__pull_requests.values()))
         logger.info("{} pull requests have release notes", len(prs))
 
         label_prs_by_kind = list(
-            filter(
-                lambda x: x[0].group == "kind",
-                Data.__grouped_by_labels(lambda l: l.name,
-                                         prs,
-                                         sort_reverse=True)))
+            filter(lambda x: x[0].group == "kind",
+                   Data.__grouped_by_labels(lambda l: l.name, prs)))
         logger.info("Those have {} distinct labels in the group 'kind'",
                     len(label_prs_by_kind))
 
+        series = Series()
         logger.info("The statistics are:")
         for (label, prs) in label_prs_by_kind:
+            series.add(label.name, len(prs))
             logger.info(
                 "{}: {} entries",
                 label.name,
                 len(prs),
             )
+        return series
 
     def train_release_notes_by_label(self, label: str, tune: bool):
         Data.__train(self.__pull_requests.values(), lambda x: x.release_note,

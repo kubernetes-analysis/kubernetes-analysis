@@ -32,6 +32,7 @@ class Rollout(Cli):
 
         logger.info("Specifying canary")
         canary = V1alpha2EndpointSpec(predictor=V1alpha2PredictorSpec(
+            min_replicas=1,
             custom=V1alpha2CustomSpec(container=V1Container(
                 name=Serve.SERVICE_NAME,
                 image="{}:{}".format(Pipeline.DEPLOY_IMAGE, self.args.tag),

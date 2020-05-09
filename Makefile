@@ -15,8 +15,8 @@ assets: \
 	assets-labels-by-name \
 	assets-labels-by-group \
 	assets-labels-by-created \
-	assets-labels-by-closed
-
+	assets-labels-by-closed \
+	assets-release-notes-stats
 
 .PHONY: assets-created
 assets-created:
@@ -59,6 +59,10 @@ assets-labels-by-closed:
 	./main analyze --users-by-closed -s assets/users-by-closed-all-top-25.svg
 	./main analyze --users-by-closed --issues -s assets/users-by-closed-issues-top-25.svg
 	./main analyze --users-by-closed --pull-requests -s assets/users-by-closed-pull-requests-top-25.svg
+
+.PHONY: assets-release-notes-stats
+assets-release-notes-stats:
+	./main analyze --release-notes-stats -s assets/release-notes-stats.svg
 
 .PHONY: lint
 lint:

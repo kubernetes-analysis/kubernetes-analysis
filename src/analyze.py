@@ -183,8 +183,10 @@ class Analyze(Cli):
 
         # Release notes statistics
         if self.args.release_notes_stats:
-            data.release_notes_stats()
-            return
+            series = data.release_notes_stats()
+            plot = Plot(series)
+            plot.barh("kind/* labels for PRs containing release notes",
+                      self.args.count)
 
         if self.args.save_svg:
             Plot.save(self.args.save_svg)

@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import sys
 import time
 from typing import Any, Optional, Tuple
 
@@ -17,8 +18,8 @@ class Export(Cli):
 
     @staticmethod
     def add_parser(command: str, subparsers: Any):
-        parser = subparsers.add_parser(command,
-                                       help="export data from the GitHub API")
+        parser = subparsers.add_parser(
+            command, help="export data from the GitHub API or prepare it")
 
         update_group = parser.add_mutually_exclusive_group()
 
@@ -33,18 +34,20 @@ class Export(Cli):
                                   help="Update the data set")
 
     def run(self):
+        if self.args.update_data:
+            logger.info("Updating local data")
+            Data(parse=True).dump()
+            return
+
+        token = Export.get_github_token()
+        github = Github(token)
+        repo = github.get_repo("kubernetes/kubernetes")
+
         if self.args.update_api:
             logger.info("Retrieving issues and PRs")
-            token = Export.get_github_token()
-            github = Github(token)
-            repo = github.get_repo("kubernetes/kubernetes")
 
             logger.info("Updating API")
             Export.update_api(repo)
-
-        elif self.args.update_data:
-            logger.info("Updating local data")
-            Data(parse=True).dump()
 
         else:
             logger.info("Dumping all issues")
@@ -58,6 +61,7 @@ class Export(Cli):
         if token is None:
             logger.critical("{} environment variable not set",
                             Export.GITHUB_TOKEN)
+            sys.exit(1)
         return token
 
     @staticmethod
