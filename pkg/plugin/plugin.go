@@ -330,7 +330,7 @@ func (p *predictor) Predict(url, input string) (PredictionResult, error) {
 		return 0, errors.Wrap(err, "doing HTTP request")
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return 0, errors.Errorf("HTTP status: %s", resp.Status)
 	}
 
