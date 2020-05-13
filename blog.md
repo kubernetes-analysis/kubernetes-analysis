@@ -1,7 +1,7 @@
 # My exciting journey into Kubernetes’ history
 
-A story of data science-ing 90.000 GitHub issues and pull requests by using
-Kubeflow, TensorFlow, Prow and a fully automated CI/CD pipeline.
+> A story of data science-ing 90,000 GitHub issues and pull requests by using
+> Kubeflow, TensorFlow, Prow and a fully automated CI/CD pipeline.
 
 - [Introduction](#introduction)
 - [Getting the Data](#getting-the-data)
@@ -19,19 +19,19 @@ Kubeflow, TensorFlow, Prow and a fully automated CI/CD pipeline.
 # Introduction
 
 Choosing the right steps when working in the field of data science is truly no
-silver bullet. Most data scientists might have their own custom workflow, which
-could be more or less automated depending on the area they’re working in. Using
+silver bullet. Most data scientists might have their custom workflow, which
+could be more or less automated, depending on their area of work. Using
 [Kubernetes][10] can be a tremendous enhancement when trying to automate
-workflows at a large scale. In this blog post I would like to take you on my
+workflows on a large scale. In this blog post, I would like to take you on my
 journey of doing data science while integrating the overall workflow into
 Kubernetes.
 
-The target of the research I did in the past few months was to find any kind of
+The target of the research I did in the past few months was to find any
 useful information about all those thousands of GitHub issues and pull requests
 (PRs) we have in the [Kubernetes repository][11]. What I ended up with was a
 fully automated, in Kubernetes running Continuous Integration (CI) and
 Deployment (CD) data science workflow powered by [Kubeflow][12] and [Prow][13].
-You may not know both of them, but we will get to the point where I explain what
+You may not know both of them, but we get to the point where I explain what
 they’re doing in detail. The source code of my work can be found in the
 [kubernetes-analysis GitHub repository][14], which contains everything source
 code-related as well as the raw data. But how to retrieve this data I’m talking
@@ -48,11 +48,11 @@ about? Well, this is where the story begins.
 The foundation for my experiments is the raw GitHub API data in plain [JSON][23]
 format. The necessary data can be retrieved via the [GitHub issues
 endpoint][20], which returns all pull requests as well as regular issues in the
-[REST][21] API. I exported round about **91.000** issues and pull requests in
+[REST][21] API. I exported roughly **91000** issues and pull requests in
 the first iteration into a massive **650 MiB** data blob. This took me about **8
-hours** of data retrieval time because for sure the GitHub API is [rate
+hours** of data retrieval time because for sure, the GitHub API is [rate
 limited][22]. To be able to put this data into a GitHub repository, I’d chosen
-to compress it via [`xz(1)`][24]. The result was a round about [25 MiB sized
+to compress it via [`xz(1)`][24]. The result was a roundabout [25 MiB sized
 tarball][25], which fits well into the repository.
 
 [20]: https://developer.github.com/v3/issues
@@ -65,8 +65,8 @@ tarball][25], which fits well into the repository.
 I had to find a way to regularly update the dataset because the Kubernetes
 issues and pull requests are updated by the users over time as well as new ones
 are created. To achieve the continuous update without having to wait 8 hours
-over and over again, I now just fetch the delta GitHub API data between the
-[last update][31] and the current time. This way a Continuous Integration job
+over and over again, I now fetch the delta GitHub API data between the
+[last update][31] and the current time. This way, a Continuous Integration job
 can update the data on a regular basis, whereas I can continue my research with
 the latest available set of data.
 
@@ -117,16 +117,15 @@ INFO | Updating issue 87746 (updated at 2020-05-09T11:01:51Z)
 INFO | Saving data
 ```
 
-This gives us an idea how fast the project is actually moving: On a Saturday
-noon European time 5 issues and pull requests got updated within literally 5
+This gives us an idea of how fast the project is actually moving: On a Saturday
+at noon (European time), 5 issues and pull requests got updated within literally 5
 minutes!
 
 Funnily enough, [Joe Beda][32], one of the founders of Kubernetes, created the
 first GitHub issue [mentioning that the unit test coverage is too low][33]. The
-issue has no further description than the title and no enhanced labeling
+issue has no further description than the title, and no enhanced labeling
 applied, like we know from more recent issues and pull requests. But now we have
-to explore the exported data more deeply to actually do something useful with
-it.
+to explore the exported data more deeply to do something useful with it.
 
 [32]: https://github.com/jbeda
 [33]: https://github.com/kubernetes/kubernetes/issues/1
@@ -149,7 +148,7 @@ INFO | Parsed 34380 issues and 55832 pull requests (90212 items)
 
 The Python [matplotlib][40] module should pop up a graph which looks like this:
 
-![created-all](assets/created-all.svg)
+![created all](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/created-all.svg)
 
 [40]: https://matplotlib.org
 
@@ -157,15 +156,15 @@ Okay, this looks not that spectacular but gives us an impression on how the
 project has grown over the past 6 years. To get a better idea about the speed of
 development of the project, we can look at the _created-vs-closed_ metric. This
 means on our timeline, we add one to the y-axis if an issue or pull request got
-created and subtract one if closed. Now the chart looks like this:
+created and subtracts one if closed. Now the chart looks like this:
 
 ```
 > ./main analyze --created-vs-closed
 ```
 
-![created-vs-closed-all](assets/created-vs-closed-all.svg)
+![created vs closed all](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/created-vs-closed-all.svg)
 
-In the beginning of 2018, the Kubernetes projects introduced some more enhanced
+At the beginning of 2018, the Kubernetes projects introduced some more enhanced
 life-cycle management via the glorious [fejta-bot][41]. This automatically
 closes issues and pull requests after they got stale over a longer period of
 time. This resulted in a massive closing of issues, which does not apply to pull
@@ -178,11 +177,11 @@ metric only for pull requests.
 > ./main analyze --created-vs-closed --pull-requests
 ```
 
-![created-vs-closed-pull-requests](assets/created-vs-closed-pull-requests.svg)
+![created vs closed pull requests](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/created-vs-closed-pull-requests.svg)
 
 The overall impact is not that obvious. What we can see is that the increasing
-number of peaks in the PR chart indicate that the project is moving faster over
-time. Usually a candlestick chart would be a better choice for showing this kind
+number of peaks in the PR chart indicates that the project is moving faster over
+time. Usually, a candlestick chart would be a better choice for showing this kind
 of volatility-related information. I’d also like to highlight that it looks like
 the development of the project slowed down a bit in the beginning of 2020.
 
@@ -211,8 +210,8 @@ I changed something extremely important and you should note that.
 Those release notes are parsed by [dedicated Release Engineering Tools like
 `krel`][52] during the release creation process and will be part of the various
 [CHANGELOG.md][53] files and the [Release Notes Website][54]. That seems like a
-lot of magic, but in the end the quality of the overall release notes is much
-higher, because they’re easy to edit and the PR reviewers can ensure that we
+lot of magic, but in the end, the quality of the overall release notes is much
+higher because they’re easy to edit, and the PR reviewers can ensure that we
 only document real user-facing changes and nothing else.
 
 [52]: https://github.com/kubernetes/release#tools
@@ -220,9 +219,9 @@ only document real user-facing changes and nothing else.
 [54]: https://relnotes.k8s.io
 
 The quality of the input data is a key aspect when doing data science. I decided
-to focus on the release notes, because they seem to have the highest amount of
+to focus on the release notes because they seem to have the highest amount of
 overall quality when comparing them to the plain descriptions in issues and PRs.
-Besides that, they’re easy to parse and we would not have a need to strip away
+Besides that, they’re easy to parse, and we would not need to strip away
 the [various issue][55] and [PR template][56] text noise.
 
 [55]: https://github.com/kubernetes/kubernetes/tree/master/.github/ISSUE_TEMPLATE
@@ -240,7 +239,7 @@ the repository is to plot them into a bar chart:
 > ./main analyze --labels-by-group
 ```
 
-![labels-by-group-all-top-25](assets/labels-by-group-all-top-25.svg)
+![labels by group all top 25](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/labels-by-group-all-top-25.svg)
 
 It looks like that `sig/`, `kind/` and `area/` labels are pretty common.
 Something like `size/` can be ignored for now because these labels are
@@ -253,7 +252,7 @@ means that the top 25 labels on pull requests are:
 > ./main analyze --labels-by-name --pull-requests
 ```
 
-![labels-by-name-pull-requests-top-25](assets/labels-by-name-pull-requests-top-25.svg)
+![labels by name pull requests top 25](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/labels-by-name-pull-requests-top-25.svg)
 
 Again, we can ignore labels like `lgtm` (looks good to me), because every PR
 which now should get merged has to look good. Pull requests containing release
@@ -279,17 +278,17 @@ on pull requests which have release notes?
 > ./main analyze --release-notes-stats
 ```
 
-![release-notes-stats](assets/release-notes-stats.svg)
+![release notes stats](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/release-notes-stats.svg)
 
-Interestingly, we have approximately 7.000 overall pull requests containing
-release notes, but only ~5.000 have a `kind/` label applied. The distribution of
-the labels is not equally and one third of them are labeled as `kind/bug`. This
+Interestingly, we have approximately 7,000 overall pull requests containing
+release notes, but only ~5,000 have a `kind/` label applied. The distribution of
+the labels is not equal, and one-third of them are labeled as `kind/bug`. This
 brings me to the next decision in my data science journey: I will build a binary
-classifier which, for sake of simplicity, is only able to distinguish between
+classifier which, for the sake of simplicity, is only able to distinguish between
 bugs (via `kind/bug`) and non-bugs (where the label is not applied).
 
 The main target is now to be able to classify newly incoming release notes if
-they are related to a bug or not, based on the historic data we already have
+they are related to a bug or not, based on the historical data we already have
 from the community.
 
 Before doing that, I recommend that you play around with the `./main analyze -h`
@@ -297,28 +296,28 @@ subcommand as well to explore the latest set of data. You can also check out all
 the [continuously updated assets][57] I provide within the analysis repository.
 For example, those are the top 25 PR creators inside the Kubernetes repository:
 
-![users-by-created-pull-request](assets/users-by-created-pull-requests-top-25.svg)
+![users by created pull request](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/assets/users-by-created-pull-requests-top-25.svg)
 
 [57]: https://github.com/kubernetes-analysis/kubernetes-analysis/tree/master/assets
 
 # Building the Machine Learning Model
 
-Now we have an idea what the data set is about and we can start building a first
+Now we have an idea what the data set is about, and we can start building a first
 machine learning model. Before actually building the model, we have to
-pre-process all the extracted release notes from the PRs, otherwise the model
+pre-process all the extracted release notes from the PRs. Otherwise, the model
 would not be able to understand our input.
 
 ## Doing some first Natural Language Processing (NLP)
 
-In the beginning we have to define a vocabulary for which we want to train. I
+In the beginning, we have to define a vocabulary for which we want to train. I
 decided to choose the [TfidfVectorizer][60] from the Python scikit-learn machine
 learning library. This vectorizer is able to take our input texts and create a
 single huge vocabulary out of it. This is our so-called [bag-of-words][61],
 which has a chosen n-gram range of `(1, 2)` (unigrams and bigrams). Practically
 this means that we always use the first word and the next one as a single
 vocabulary entry (bigrams). We also use the single word as vocabulary entry
-(unigram). The TfidfVectorizer is able to skip words which occur multiple times
-(`max_df`) and requires a minimum amount (`min_df`) to add a word to the
+(unigram). The TfidfVectorizer is able to skip words that occur multiple times
+(`max_df`), and requires a minimum amount (`min_df`) to add a word to the
 vocabulary. I decided not to change those values in the first place, just
 because I had the intuition that release notes are something unique to a
 project.
@@ -327,13 +326,13 @@ Parameters like `min_df`, `max_df` and the n-gram range can be seen as some of
 our hyperparameters. Those parameters have to be optimized in a dedicated step
 after the machine learning model has been built. This step is called
 hyperparameter tuning and basically means that we train multiple times with
-different parameters and compare the accuracy of the model. Afterwards we choose
+different parameters and compare the accuracy of the model. Afterwards, we choose
 the parameters with the best accuracy.
 
 [60]: https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
 [61]: https://en.wikipedia.org/wiki/Bag-of-words_model
 
-During the training the vectorizer will produce a `data/features.json` which
+During the training, the vectorizer will produce a `data/features.json` which
 contains the whole vocabulary. This gives us a good understanding of how such a
 vocabulary may look like:
 
@@ -350,20 +349,20 @@ vocabulary may look like:
 ]
 ```
 
-This produces round about 50.000 entries in the overall bag-of-words, which is
+This produces round about 50,000 entries in the overall bag-of-words, which is
 pretty much. Previous analyses between different data sets showed that it is
 simply not necessary to take so many features into account. Some general data
-sets state that an overall vocabulary of 20.000 is enough and higher amounts do
+sets state that an overall vocabulary of 20,000 is enough and higher amounts do
 not influence the accuracy any more. To do so we can use the [SelectKBest][62]
 feature selector to strip down the vocabulary to only choose the top features.
-Anyway, I still decided to stick to the top 50.000 to not negatively influence
-the model accuracy. We have a relatively low amount of data (appr. 7.000
+Anyway, I still decided to stick to the top 50,000 to not negatively influence
+the model accuracy. We have a relatively low amount of data (appr. 7,000
 samples) and a low number of words per sample (~15) which already made me wonder
 if we have enough data at all.
 
 [62]: https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.SelectKBest.html
 
-The vectorizer is not only able to create our bag-of-words, it is also able to
+The vectorizer is not only able to create our bag-of-words, but it is also able to
 encode the features in [term frequency–inverse document frequency (tf-idf)][63]
 format. That is where the vectorizer got its name, whereas the output of that
 encoding is something the machine learning model can directly consume. All the
@@ -378,12 +377,12 @@ I decided to choose a simple MLP based model which is built with the help of the
 popular [TensorFlow][70] framework. Because we do not have that much input data,
 we just use two hidden layers, so that the model basically looks like this:
 
-![model](.img/model.png)
+![model](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/model.png)
 
 [70]: https://www.tensorflow.org/api_docs/python/tf/keras?utm_source=DevSite&utm_campaign=Text-Class-Guide&utm_medium=referral&utm_content=tensorflow&utm_term=keras
 
 There have to be [multiple other][71] hyperparameters to be taken into account
-when creating the model. I will not discuss them in detail here but they’re
+when creating the model. I will not discuss them in detail here, but they’re
 important to be optimized also in relation to the number of classes we want to
 have in the model (only two in our case).
 
@@ -391,7 +390,7 @@ have in the model (only two in our case).
 
 ## Training the Model
 
-Before starting the actual training we have to split up our input data into
+Before starting the actual training, we have to split up our input data into
 training and validation data sets. I’ve chosen to use ~80% of the data for
 training and 20% for validation purposes. We have to shuffle our input data as
 well to ensure that the model is not affected by ordering issues. The technical
@@ -510,18 +509,18 @@ requirements. The pipeline I built looks like this:
 
 [90]: https://www.kubeflow.org/docs/pipelines/overview/pipelines-overview
 
-![pipeline](.img/kubeflow-pipeline.png)
+![pipeline](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/kubeflow-pipeline.png)
 
-First we check out the source code of the PR, which will be passed on as output
+First, we check out the source code of the PR, which will be passed on as output
 artifact to all other steps. Then we incrementally update the API and internal
 data before we run the training on an always up-to-date data set. The prediction
 test verifies after the training that we did not badly influence the model with
 our changes.
 
 We also built a container image within our pipeline. [This container image][91]
-copies the previously built model, vectorizer and selector into a container and
-runs `./main serve`. When doing this, we spin up a [kfserving][92] web server
-which can be used for prediction purposes. Wanna try it out by yourself? Simply
+copies the previously built model, vectorizer, and selector into a container and
+runs `./main serve`. When doing this, we spin up a [kfserving][92] web server,
+which can be used for prediction purposes. Do you want to try it out by yourself? Simply
 do a JSON POST request like this and run the prediction against the endpoint:
 
 ```
@@ -530,7 +529,7 @@ do a JSON POST request like this and run the prediction against the endpoint:
 {"result": 0.1251964420080185}
 ```
 
-The [custom kfserving][93] implementation is pretty straightforward whereas the
+The [custom kfserving][93] implementation is pretty straightforward, whereas the
 deployment utilizes [Knative Serving][95] and an [Istio][94] ingress gateway
 under the hood to correctly route the traffic into the cluster and provide the
 right set of services.
@@ -544,7 +543,7 @@ right set of services.
 The `commit-changes` and `rollout` step will only run if the pipeline runs on
 the `master` branch. Those steps make sure that we always have the latest data
 set available on the master branch as well as in the kfserving deployment. The
-[rollout step][96] creates a new canary deployment which only accepts 50% of the
+[rollout step][96] creates a new canary deployment, which only accepts 50% of the
 incoming traffic in the first place. After the canary got deployed successfully,
 it will be promoted as the new main instance of the service. This is a great way
 to ensure that the deployment works as intended and allows additional testing
@@ -576,39 +575,39 @@ the kubernetes-analysis repository, we will see the following:
 
 [110]: https://github.com/kubernetes-analysis/kubernetes-analysis/tree/master/pkg
 
-![pr-1](.img/pr-1.png)
+![pr 1](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-1.png)
 
 ---
 
-![pr-2](.img/pr-2.png)
+![pr 2](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-2.png)
 
 Okay cool, so now let’s change the release note based on a real bug from the
 already existing dataset:
 
-![pr-3](.img/pr-3.png)
+![pr 3](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-3.png)
 
 ---
 
-![pr-4](.img/pr-4.png)
+![pr 4](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-4.png)
 
 The bot edits its own comment, predicts it with round about 90% as `kind/bug`
 and automatically adds the correct label! Now, if we change it back to some
 different - obviously wrong - release note:
 
-![pr-5](.img/pr-5.png)
+![pr 5](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-5.png)
 
 ---
 
-![pr-6](.img/pr-6.png)
+![pr 6](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-6.png)
 
 The bot does the work for us, removes the label and informs us what it did!
 Finally, if we change the release note to `None`:
 
-![pr-7](.img/pr-7.png)
+![pr 7](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-7.png)
 
 ---
 
-![pr-8](.img/pr-8.png)
+![pr 8](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/pr-8.png)
 
 The bot removed the comment, which is nice and reduces the text noise on the PR.
 Everything I demonstrated is running inside a single Kubernetes cluster, which
@@ -625,7 +624,7 @@ also for issues rather than only for pull requests.
 So then, we have a running CI bot which is able to classify new release notes
 based on a machine learning model. If the bot would run in the official
 Kubernetes repository, then we could correct wrong label predictions manually.
-This way the next training iteration would pick up the correction and result in
+This way, the next training iteration would pick up the correction and result in
 a continuously improved model over time. All totally automated!
 
 # Summary
@@ -634,7 +633,7 @@ Thank you for reading down to here! This was my little data science journey
 through the Kubernetes GitHub repository. There are a lot of other things to
 optimize, for example introducing more classes (than just `kind/bug` or nothing)
 or automatic hyperparameter tuning with Kubeflows [Katib][120]. If you have any
-questions or suggestions then feel free to get in touch with me anytime. See you
+questions or suggestions, then feel free to get in touch with me anytime. See you
 soon!
 
 [120]: https://www.kubeflow.org/docs/components/hyperparameter-tuning/hyperparameter
