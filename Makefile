@@ -4,7 +4,6 @@ pipeline:
 
 .PHONY: pipeline-run
 pipeline-run: pipeline
-	# ci/tree-status
 	ci/run
 
 .PHONY: assets
