@@ -6,8 +6,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
-	k8s.io/release v0.3.1-0.20200508084750-b82e255bb1dd
-	k8s.io/test-infra v0.0.0-20200504223708-6c76e02fb720
+	k8s.io/release v0.3.2-0.20200515084658-44f0f159dd82
+	k8s.io/test-infra v0.0.0-20200515104936-59705fc01a8d
 )
 
 replace (
