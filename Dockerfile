@@ -7,7 +7,7 @@ RUN VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/
     kubectl version --client --short
 
 # install argo
-RUN VERSION=v2.8.0-rc3 && \
+RUN VERSION=v2.8.0 && \
     curl -sfL https://github.com/argoproj/argo/releases/download/$VERSION/argo-linux-amd64 -o /usr/bin/argo && \
     chmod +x /usr/bin/argo
 
