@@ -6,3 +6,5 @@ This project aims to provide continuous data analysis of all GitHub issues and
 Pull Requests (PRs) in the [Kubernetes][0] repository.
 
 [0]: http://github.com/kubernetes/kubernetes
+
+<!-- TODO: add the blog post -->

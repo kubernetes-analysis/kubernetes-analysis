@@ -2,9 +2,11 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: kubernetes-analysis-
-  annotations: {pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "",
-      "name": "pr", "optional": true, "type": "String"}, {"default": "", "name": "commit",
-      "optional": true, "type": "String"}], "name": "Kubernetes Analysis"}'}
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-05-15T19:30:52.445945',
+    pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "", "name": "pr",
+      "optional": true, "type": "String"}, {"default": "", "name": "commit", "optional":
+      true, "type": "String"}], "name": "Kubernetes Analysis"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
 spec:
   entrypoint: kubernetes-analysis
   templates:
@@ -57,6 +59,7 @@ spec:
     metadata:
       annotations: {container.apparmor.security.beta.kubernetes.io/main: unconfined,
         container.apparmor.security.beta.kubernetes.io/wait: unconfined}
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -100,6 +103,8 @@ spec:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: checkout-repo, path: /out/kubernetes-analysis}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -158,6 +163,8 @@ spec:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -283,6 +290,8 @@ spec:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -329,6 +338,8 @@ spec:
       artifacts:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -377,6 +388,8 @@ spec:
       - {name: train-model, path: /out/data/model.h5}
       - {name: train-selector, path: /out/data/selector.pickle}
       - {name: train-vectorizer, path: /out/data/vectorizer.pickle}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -421,6 +434,8 @@ spec:
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: update-api-api, path: /out/data/api.tar.xz}
       - {name: update-api-update-file, path: /out/.update}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -461,6 +476,8 @@ spec:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: update-assets-assets, path: /out/assets}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
@@ -501,6 +518,8 @@ spec:
       - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
       - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
       - {name: update-data-data, path: /out/data/data.tar.xz}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
     volumes:
     - name: github-token
       secret: {secretName: github-token}
