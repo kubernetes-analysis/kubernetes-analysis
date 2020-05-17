@@ -59,6 +59,7 @@ periodics:
               pushd $REPO
 
               make pipeline-run
+              argo delete --completed
 
 postsubmits:
   kubernetes-analysis/kubernetes-analysis:
