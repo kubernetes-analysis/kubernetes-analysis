@@ -379,7 +379,7 @@ we just use two hidden layers, so that the model basically looks like this:
 
 ![model](https://raw.githubusercontent.com/kubernetes-analysis/kubernetes-analysis/master/.img/model.png)
 
-[70]: https://www.tensorflow.org/api_docs/python/tf/keras?utm_source=DevSite&utm_campaign=Text-Class-Guide&utm_medium=referral&utm_content=tensorflow&utm_term=keras
+[70]: https://www.tensorflow.org/api_docs/python/tf/keras
 
 There have to be [multiple other][71] hyperparameters to be taken into account
 when creating the model. I will not discuss them in detail here, but they’re
