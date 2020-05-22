@@ -44,11 +44,11 @@ class Predict(Cli):
                             help="The text to predict")
 
         parser.add_argument(
-            "--treshold",
+            "--threshold",
             "-r",
             default=.6,
             type=float,
-            help="The treshold for returning a positive exit code")
+            help="The threshold for returning a positive exit code")
 
         parser.add_argument("--test",
                             "-t",
@@ -73,9 +73,9 @@ class Predict(Cli):
         result = Nlp.predict(text)
         logger.info("Got prediction result: {}", result)
 
-        if expected_positive and result < self.args.treshold:
-            logger.error("Result is lower than selected treshold {}",
-                         self.args.treshold)
+        if expected_positive and result < self.args.threshold:
+            logger.error("Result is lower than selected threshold {}",
+                         self.args.threshold)
             sys.exit(1)
 
         logger.info("Matched expected {} prediction result",

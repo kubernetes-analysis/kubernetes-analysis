@@ -488,7 +488,7 @@ minutes ago:
 ```
 ./main predict "My dudes, if you can understand SYN-ACK, you can understand consent"
 INFO  | Got prediction result: 0.1251964420080185
-ERROR | Result is lower than selected treshold 0.6
+ERROR | Result is lower than selected threshold 0.6
 ```
 
 Looks like it is not classified as bug for a release note, which seems to work.
