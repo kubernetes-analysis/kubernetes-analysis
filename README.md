@@ -7,4 +7,7 @@ Pull Requests (PRs) in the [Kubernetes][0] repository.
 
 [0]: http://github.com/kubernetes/kubernetes
 
-<!-- TODO: add the blog post -->
+A detailed description about the purpose of this repository can be found in
+the [corresponding blog post][1].
+
+[1]: https://kubernetes.io/blog/2020/05/my-exciting-journey-into-kubernetes-history
