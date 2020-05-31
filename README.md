@@ -11,3 +11,6 @@ A detailed description about the purpose of this repository can be found in
 the [corresponding blog post][1].
 
 [1]: https://kubernetes.io/blog/2020/05/my-exciting-journey-into-kubernetes-history
+
+Feel free to get in contact with me directly for any
+question or feedback. 🙂
