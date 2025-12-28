@@ -12,6 +12,7 @@ from src.predict import Predict
 from src.rollout import Rollout
 from src.serve import Serve
 from src.train import Train
+from src.tune import Tune
 
 COMMAND_EXPORT = "export"
 COMMAND_ANALYZE = "analyze"
@@ -20,6 +21,7 @@ COMMAND_PREDICT = "predict"
 COMMAND_PIPELINE = "pipeline"
 COMMAND_SERVE = "serve"
 COMMAND_ROLLOUT = "rollout"
+COMMAND_TUNE = "tune"
 
 
 def main():
@@ -46,6 +48,9 @@ def main():
     if args.command == COMMAND_ROLLOUT:
         Rollout(args).run()
 
+    if args.command == COMMAND_TUNE:
+        Tune(args).run()
+
 
 def parse_args() -> Any:
     parser = argparse.ArgumentParser()
@@ -60,6 +65,7 @@ def parse_args() -> Any:
     Pipeline.add_parser(COMMAND_PIPELINE, subparsers)
     Serve.add_parser(COMMAND_SERVE, subparsers)
     Rollout.add_parser(COMMAND_ROLLOUT, subparsers)
+    Tune.add_parser(COMMAND_TUNE, subparsers)
 
     return parser.parse_args()
 

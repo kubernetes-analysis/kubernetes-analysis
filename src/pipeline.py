@@ -3,18 +3,32 @@ from textwrap import dedent
 from typing import Any, Dict, List, Optional, Tuple
 
 from kfp.compiler import Compiler
-from kfp.dsl import ContainerOp, InputArgumentPath, pipeline
+from kfp.components import func_to_container_op
+from kfp.dsl import ContainerOp, InputArgumentPath, PipelineVolume, pipeline
 from kubernetes import client as k8s
 from loguru import logger
 
 from .cli import Cli
 from .data import Data
 from .export import Export
+from .katib import KatibOp
 from .nlp import Nlp
+
+
+def to_args(experiment_result) -> str:
+    import json
+    r = json.loads(experiment_result)
+    args = []
+    for hp in r:
+        print(hp)
+        args.append("%s %s" % (hp["name"], hp["value"]))
+
+    return " ".join(args)
 
 
 class Pipeline(Cli):
     OUT_DIR = "/out"
+    PV_DIR = "/pv"
     REPO = "kubernetes-analysis"
     FILE = Data.dir_path("pipeline.yaml")
 
@@ -51,10 +65,8 @@ class Pipeline(Cli):
                 fi
                 popd
             """.format(repo=Pipeline.REPO, pr=pr)),
-                                                        outputs={
-                                                            "repo":
-                                                            Pipeline.REPO,
-                                                        })
+            outputs={"repo": Pipeline.REPO, }
+        )
         repo = checkout_outputs["repo"]
 
         # Udpate the API data
@@ -85,6 +97,19 @@ class Pipeline(Cli):
         update_data.after(update_api)
         data = update_data_outputs["data"]
 
+        katib_op = KatibOp(image=Pipeline.IMAGE, name="katib-experiment",
+                           output=Pipeline.PV_DIR, repo="kubernetes-analysis", pr="")
+
+        katib, _ = Pipeline.container(
+            "katib-experiment",
+            katib_op.op,
+            image=katib_op.controller_img,
+            outputs={"params": "results/params"}
+        )
+        katib.add_pvolumes({Pipeline.PV_DIR: PipelineVolume(pvc="pipeline-pv")})
+        katib.after(update_data)
+        tune_params = func_to_container_op(to_args)(katib.outputs["params"])
+
         # Udpate the analysis assets
         update_assets, update_assets_outputs = Pipeline.container(
             "update-assets",
@@ -97,7 +122,7 @@ class Pipeline(Cli):
         # Train the model
         train, train_outputs = Pipeline.container(
             "train",
-            "./main train",
+            "./main train {}".format(tune_params.output),
             inputs=[repo, data],
             outputs={
                 "vectorizer": Nlp.VECTORIZER_FILE,
@@ -106,7 +131,7 @@ class Pipeline(Cli):
             },
         )
         train.container.set_gpu_limit("2")
-        train.after(update_data)
+        train.after(katib)
         vectorizer = train_outputs["vectorizer"]
         selector = train_outputs["selector"]
         model = train_outputs["model"]
@@ -188,6 +213,7 @@ class Pipeline(Cli):
         arguments: str,
         inputs: Optional[List[Tuple[InputArgumentPath, str]]] = None,
         outputs: Optional[Dict[str, str]] = None,
+        image: str = None
     ) -> Tuple[ContainerOp, Dict[str, Tuple[InputArgumentPath, str]]]:
         # Set the correct shell parameters
         prepare_args = "set -euo pipefail\n"
@@ -201,6 +227,7 @@ class Pipeline(Cli):
                 file_outputs[k] = out
                 output_artifact_copy_args += dedent("""
                     mkdir -p {d}
+                    echo copying outputs
                     cp -r {fr} {to}
                 """.format(
                     d=os.path.dirname(out),
@@ -210,7 +237,7 @@ class Pipeline(Cli):
 
         # Create the container
         ctr = ContainerOp(
-            image=Pipeline.IMAGE,
+            image=image if image else Pipeline.IMAGE,
             name=name,
             command=["bash", "-c"],
             output_artifact_paths=Pipeline.default_artifact_path(),

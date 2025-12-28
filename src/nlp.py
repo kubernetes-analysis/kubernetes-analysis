@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+from collections import namedtuple
 from typing import Any, List, Tuple
 
 import numpy as np
@@ -8,6 +9,9 @@ import tensorflow as tf
 from loguru import logger
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest, f_classif
+
+TuneParams = namedtuple("TuneParams", ["layers", "units"])
+DEFAULT_PARAMS = TuneParams([1, 2, 3], [8, 16, 32, 64, 128])
 
 
 class Nlp():
@@ -58,16 +62,14 @@ class Nlp():
 
         return (vectorizer, selector, model)
 
-    def train(self, tune: bool = False):
+    def train(self, tune: bool = False, tune_params: TuneParams = DEFAULT_PARAMS):
         if tune:
-            self.__tune()
+            self.__tune(tune_params)
         else:
-            self.__train()
+            self.__train(layers=tune_params.layers if tune_params else 2,
+                         units=tune_params.units if tune_params else 64)
 
-    def __tune(self):
-        num_layers = [1, 2, 3]
-        num_units = [8, 16, 32, 64, 128]
-
+    def __tune(self, tune_params: TuneParams, epochs=10, learning_rate=1e-3):
         # Save parameter combination and results
         params = {
             "layers": [],
@@ -76,14 +78,16 @@ class Nlp():
         }
 
         # Iterate over all parameter combinations
-        for layers in num_layers:
-            for units in num_units:
+        for layers in tune_params.layers:
+            for units in tune_params.units:
                 params["layers"].append(layers)
                 params["units"].append(units)
 
-                accuracy, _ = self.__train(layers=layers, units=units)
-                logger.info("Accuracy: {}, Layers: {}, Units: {}", accuracy,
-                            layers, units)
+                accuracy, _ = self.__train(
+                    layers=layers, units=units, epochs=epochs, learning_rate=learning_rate)
+                print(
+                    "Epoch: {}\nAccuracy={}\n Layers={}\n Units={}".format(
+                        epochs, accuracy, layers, units))
                 params["accuracy"].append(accuracy)
 
         logger.info("Tuning results: {}", params)
@@ -247,8 +251,8 @@ class Nlp():
             tf.keras.layers.Dropout(rate=dropout_rate,
                                     input_shape=input_shape))
 
-        for _ in range(layers - 1):
-            model.add(tf.keras.layers.Dense(units=units, activation="relu"))
+        for scale in range(1, units // 2):
+            model.add(tf.keras.layers.Dense(units=units // (2**scale), activation="relu"))
             model.add(tf.keras.layers.Dropout(rate=dropout_rate))
 
         model.add(tf.keras.layers.Dense(units=units, activation=activation))

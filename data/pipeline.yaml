@@ -86,6 +86,7 @@ spec:
         popd
 
         mkdir -p /out
+        echo copying outputs
         cp -r kubernetes-analysis /out/kubernetes-analysis
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
@@ -174,6 +175,47 @@ spec:
       secret: {secretName: quay}
     - name: ssh-key
       secret: {defaultMode: 384, secretName: ssh-key}
+  - name: katib-experiment
+    container:
+      args:
+      - |
+        set -euo pipefail
+
+        rm -rf /pv/kubernetes-analysis
+        git clone https://github.com/saschagrunert/kubernetes-analysis /pv/kubernetes-analysis
+        python /ml/launch_experiment.py --name katib-experiment --namespace kubeflow --maxTrialCount 1 --parallelTrialCount 1 --objectiveConfig '{"type": "maximize", "goal": 0.8, "objectiveMetricName": "Accuracy"}' --algorithmConfig '{"algorithmName": "random"}' --trialTemplate '{"goTemplate": {"rawTemplate": "{\"apiVersion\": \"kubeflow.org/v1\", \"kind\": \"TFJob\", \"metadata\": {\"name\": \"{{.Trial}}\", \"namespace\": \"{{.NameSpace}}\"}, \"spec\": {\"tfReplicaSpecs\": {\"Worker\": {\"replicas\": 1, \"restartPolicy\": \"OnFailure\", \"template\": {\"spec\": {\"containers\": [{\"name\": \"tensorflow\", \"image\": \"quay.io/saschagrunert/kubernetes-analysis:latest\", \"imagePullPolicy\": \"Always\", \"command\": [\"bash\", \"-c\"], \"args\": [\"cd data/kubernetes-analysis ;\", \"git fetch origin master ;\", \"git checkout master ;\", \"./main tune {{- with .HyperParameters}} {{- range .}} {{.Name}}={{.Value}} {{- end}} {{- end}}\"], \"volumeMounts\": [{\"mountPath\": \"/data\", \"name\": \"nfs-storage\"}]}], \"volumes\": [{\"name\": \"nfs-storage\", \"persistentVolumeClaim\": {\"claimName\": \"pipeline-pv\"}}]}}}}}}"}}' --parameters '[{"name": "--layers", "parameterType": "int", "feasibleSpace": {"min": "1", "max": "3"}}, {"name": "--units", "parameterType": "int", "feasibleSpace": {"min": "8", "max": "16"}}]' --metricsCollector '{"collector": {"kind": "StdOut"}}' --experimentTimeoutMinutes '15' --deleteAfterDone True --outputFile results/params
+
+        mkdir -p /out/results
+        echo copying outputs
+        cp -r results/params /out/results/params
+      command: [bash, -c]
+      image: mbu93/katib-launcher:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      - {mountPath: /out, name: output-artifacts}
+      - {mountPath: /secrets/github, name: github-token, readOnly: true}
+      - {mountPath: /secrets/quay, name: quay, readOnly: true}
+      - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
+      - {mountPath: /pv, name: pvolume-b9e658711a70a378fc2f648d144c9b62db9baf69ba848963c7274f7}
+    outputs:
+      parameters:
+      - name: katib-experiment-params
+        valueFrom: {path: /out/results/params}
+      artifacts:
+      - {name: mlpipeline-ui-metadata, path: /out/mlpipeline-ui-metadata.json}
+      - {name: mlpipeline-metrics, path: /out/mlpipeline-metrics.json}
+      - {name: katib-experiment-params, path: /out/results/params}
+    volumes:
+    - name: github-token
+      secret: {secretName: github-token}
+    - emptyDir: {}
+      name: output-artifacts
+    - name: pvolume-b9e658711a70a378fc2f648d144c9b62db9baf69ba848963c7274f7
+      persistentVolumeClaim: {claimName: pipeline-pv}
+    - name: quay
+      secret: {secretName: quay}
+    - name: ssh-key
+      secret: {defaultMode: 384, secretName: ssh-key}
   - name: kubernetes-analysis
     inputs:
       parameters:
@@ -213,6 +255,9 @@ spec:
           - {name: update-api-update-file, from: '{{tasks.update-api.outputs.artifacts.update-api-update-file}}'}
           - {name: update-assets-assets, from: '{{tasks.update-assets.outputs.artifacts.update-assets-assets}}'}
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
+      - name: katib-experiment
+        template: katib-experiment
+        dependencies: [update-data]
       - name: predict
         template: predict
         dependencies: [checkout, train]
@@ -231,10 +276,18 @@ spec:
           - {name: pr, value: '{{inputs.parameters.pr}}'}
           artifacts:
           - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
+      - name: to-args
+        template: to-args
+        dependencies: [katib-experiment]
+        arguments:
+          parameters:
+          - {name: katib-experiment-params, value: '{{tasks.katib-experiment.outputs.parameters.katib-experiment-params}}'}
       - name: train
         template: train
-        dependencies: [checkout, update-data]
+        dependencies: [checkout, katib-experiment, to-args, update-data]
         arguments:
+          parameters:
+          - {name: to-args-output, value: '{{tasks.to-args.outputs.parameters.to-args-output}}'}
           artifacts:
           - {name: checkout-repo, from: '{{tasks.checkout.outputs.artifacts.checkout-repo}}'}
           - {name: update-data-data, from: '{{tasks.update-data.outputs.artifacts.update-data-data}}'}
@@ -349,6 +402,67 @@ spec:
       secret: {secretName: quay}
     - name: ssh-key
       secret: {defaultMode: 384, secretName: ssh-key}
+  - name: to-args
+    container:
+      args: [--experiment-result, '{{inputs.parameters.katib-experiment-params}}',
+        '----output-paths', /tmp/outputs/Output/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - |
+        def to_args(experiment_result)  :
+            import json
+            r = json.loads(experiment_result)
+            args = []
+            for hp in r:
+                print(hp)
+                args.append("%s %s" % (hp["name"], hp["value"]))
+
+            return " ".join(args)
+
+        def _serialize_str(str_value: str) -> str:
+            if not isinstance(str_value, str):
+                raise TypeError('Value "{}" has type "{}" instead of str.'.format(str(str_value), str(type(str_value))))
+            return str_value
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='To args', description='')
+        _parser.add_argument("--experiment-result", dest="experiment_result", type=str, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=1)
+        _parsed_args = vars(_parser.parse_args())
+        _output_files = _parsed_args.pop("_output_paths", [])
+
+        _outputs = to_args(**_parsed_args)
+
+        _outputs = [_outputs]
+
+        _output_serializers = [
+            _serialize_str,
+
+        ]
+
+        import os
+        for idx, output_file in enumerate(_output_files):
+            try:
+                os.makedirs(os.path.dirname(output_file))
+            except OSError:
+                pass
+            with open(output_file, 'w') as f:
+                f.write(_output_serializers[idx](_outputs[idx]))
+      image: tensorflow/tensorflow:1.13.2-py3
+    inputs:
+      parameters:
+      - {name: katib-experiment-params}
+    outputs:
+      parameters:
+      - name: to-args-output
+        valueFrom: {path: /tmp/outputs/Output/data}
+      artifacts:
+      - {name: to-args-output, path: /tmp/outputs/Output/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"inputs": [{"name": "experiment_result"}],
+          "name": "To args", "outputs": [{"name": "Output", "type": "String"}]}'}
   - name: train
     container:
       args:
@@ -360,12 +474,15 @@ spec:
 
         echo "git diff:"
         git diff --name-only
-        ./main train
+        ./main train {{inputs.parameters.to-args-output}}
         mkdir -p /out/data
+        echo copying outputs
         cp -r data/vectorizer.pickle /out/data/vectorizer.pickle
         mkdir -p /out/data
+        echo copying outputs
         cp -r data/selector.pickle /out/data/selector.pickle
         mkdir -p /out/data
+        echo copying outputs
         cp -r data/model.h5 /out/data/model.h5
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
@@ -378,6 +495,8 @@ spec:
       - {mountPath: /secrets/quay, name: quay, readOnly: true}
       - {mountPath: /root/.ssh, name: ssh-key, readOnly: true}
     inputs:
+      parameters:
+      - {name: to-args-output}
       artifacts:
       - {name: checkout-repo, path: /tmp/inputs/input-0/data}
       - {name: update-data-data, path: /tmp/inputs/input-1/data}
@@ -414,8 +533,10 @@ spec:
         ./main export --update-api
 
         mkdir -p /out/data
+        echo copying outputs
         cp -r data/api.tar.xz /out/data/api.tar.xz
         mkdir -p /out
+        echo copying outputs
         cp -r .update /out/.update
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
@@ -458,6 +579,7 @@ spec:
         git diff --name-only
         make assets
         mkdir -p /out
+        echo copying outputs
         cp -r assets /out/assets
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest
@@ -500,6 +622,7 @@ spec:
         git diff --name-only
         ./main export --update-data
         mkdir -p /out/data
+        echo copying outputs
         cp -r data/data.tar.xz /out/data/data.tar.xz
       command: [bash, -c]
       image: quay.io/saschagrunert/kubernetes-analysis:latest

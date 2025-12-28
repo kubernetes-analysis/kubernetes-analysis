@@ -14,7 +14,7 @@ from loguru import logger
 
 from .issue import Issue
 from .label import Label
-from .nlp import Nlp
+from .nlp import DEFAULT_PARAMS, Nlp, TuneParams
 from .pull_request import PullRequest
 from .series import Series
 
@@ -354,13 +354,14 @@ class Data():
             )
         return series
 
-    def train_release_notes_by_label(self, label: str, tune: bool):
+    def train_release_notes_by_label(self, label: str, tune: bool,
+                                     tune_params: TuneParams = DEFAULT_PARAMS):
         Data.__train(self.__pull_requests.values(), lambda x: x.release_note,
-                     label, tune)
+                     label, tune, tune_params)
 
     @staticmethod
     def __train(items: List[Any], selector: Callable[[Any], str], label: str,
-                tune: bool):
+                tune: bool, tune_params: TuneParams):
         logger.info("Training for label '{}'", label)
 
         # Filter and randomize the items
@@ -387,4 +388,4 @@ class Data():
                     len(test_texts))
 
         # Run the training
-        Nlp(train_texts, train_labels, test_texts, test_labels).train(tune)
+        Nlp(train_texts, train_labels, test_texts, test_labels).train(tune, tune_params)
